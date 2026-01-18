@@ -1,0 +1,14 @@
+# EMS-Core v2.0 - Geräte-Konfiguration
+
+discovered_devices: []
+
+configured_devices:
+  solar: null
+  battery: null
+  grid: null
+  consumers: []
+  schedules: []
+  sg_ready:
+    enabled: false
+    relay1: null
+    relay2: null

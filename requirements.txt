@@ -1,0 +1,19 @@
+# Core
+aiohttp==3.9.1
+pyyaml==6.0.1
+redis==5.0.1
+loguru==0.7.2
+python-dateutil==2.8.2
+pytz==2024.1
+schedule==1.2.0
+
+# Device Integrations
+pymodbus==3.5.4
+requests==2.31.0
+
+# Web UI
+flask==3.0.0
+flask-cors==4.0.0
+
+# Utils
+cron-descriptor==1.4.0
