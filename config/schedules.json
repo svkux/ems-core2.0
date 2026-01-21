@@ -3,13 +3,80 @@
     "device_id": "heater",
     "enabled": true,
     "schedule": {
-      "monday": [[10, 14], [20, 22]],
-      "tuesday": [[10, 14], [20, 22]],
-      "wednesday": [[10, 14], [20, 22]],
-      "thursday": [[10, 14], [20, 22]],
-      "friday": [[10, 14], [20, 22]],
-      "saturday": [[8, 22]],
-      "sunday": [[8, 22]]
+      "monday": [
+        [
+          10,
+          14
+        ],
+        [
+          20,
+          22
+        ]
+      ],
+      "tuesday": [
+        [
+          10,
+          14
+        ],
+        [
+          20,
+          22
+        ]
+      ],
+      "wednesday": [
+        [
+          10,
+          14
+        ],
+        [
+          20,
+          22
+        ]
+      ],
+      "thursday": [
+        [
+          10,
+          14
+        ],
+        [
+          20,
+          22
+        ]
+      ],
+      "friday": [
+        [
+          10,
+          14
+        ],
+        [
+          20,
+          22
+        ]
+      ],
+      "saturday": [
+        [
+          8,
+          22
+        ]
+      ],
+      "sunday": [
+        [
+          8,
+          22
+        ]
+      ]
     }
+  },
+  "test_device": {
+    "device_id": "test_device",
+    "schedule": {
+      "monday": [
+        [
+          10,
+          14
+        ]
+      ]
+    },
+    "enabled": true
   }
 }

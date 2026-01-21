@@ -44,3 +44,9 @@ logs/*.log
 backup_*/
 *.pyc
 __pycache__/
+
+# EMS-Core
+logs/*.log
+backup_*/
+*.pyc
+__pycache__/
