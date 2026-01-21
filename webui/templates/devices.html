@@ -33,10 +33,6 @@
             margin-bottom: 10px;
         }
         
-        .header p {
-            opacity: 0.9;
-        }
-        
         .toolbar {
             display: flex;
             justify-content: space-between;
@@ -215,7 +211,6 @@
             flex: 1;
         }
         
-        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -311,13 +306,6 @@
             padding: 60px 30px;
             color: #6b7280;
         }
-        
-        .empty-state svg {
-            width: 80px;
-            height: 80px;
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
     </style>
 </head>
 <body>
@@ -353,17 +341,12 @@
             <button class="btn btn-success" onclick="openAddModal()">
                 ➕ Gerät hinzufügen
             </button>
-            <button class="btn btn-primary" onclick="location.href='/discovery'">
-                🔍 Discovery
-            </button>
             <button class="btn btn-secondary" onclick="loadDevices()">
                 🔄 Aktualisieren
             </button>
         </div>
         
-        <div class="devices-grid" id="devicesGrid">
-            <!-- Devices werden hier eingefügt -->
-        </div>
+        <div class="devices-grid" id="devicesGrid"></div>
     </div>
     
     <!-- Add/Edit Device Modal -->
@@ -391,18 +374,32 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Typ *</label>
-                            <select id="deviceType" required></select>
+                            <select id="deviceType" required>
+                                <option value="shelly_plug">Shelly Plug</option>
+                                <option value="shelly_1pm">Shelly 1PM</option>
+                                <option value="shelly_plus_1pm">Shelly Plus 1PM</option>
+                                <option value="shelly_pro_1pm">Shelly Pro 1PM</option>
+                                <option value="solax">Solax Inverter</option>
+                                <option value="sdm630">SDM630 Meter</option>
+                                <option value="generic">Generic</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label>Priorität *</label>
-                            <select id="devicePriority" required></select>
+                            <select id="devicePriority" required>
+                                <option value="CRITICAL">Critical - Immer AN</option>
+                                <option value="HIGH">High - Hohe Priorität</option>
+                                <option value="MEDIUM" selected>Medium - Mittlere Priorität</option>
+                                <option value="LOW">Low - Niedrige Priorität</option>
+                                <option value="OPTIONAL">Optional - Nur Überschuss</option>
+                            </select>
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
                             <label>IP-Adresse *</label>
-                            <input type="text" id="deviceIp" required>
+                            <input type="text" id="deviceIp" placeholder="10.0.0.150" required>
                         </div>
                         <div class="form-group">
                             <label>Port</label>
@@ -424,17 +421,25 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Raum</label>
-                            <input type="text" id="deviceRoom">
+                            <input type="text" id="deviceRoom" placeholder="z.B. Küche">
                         </div>
                         <div class="form-group">
                             <label>Kategorie</label>
-                            <select id="deviceCategory"></select>
+                            <select id="deviceCategory">
+                                <option value="">-- Keine --</option>
+                                <option value="appliance">Appliance</option>
+                                <option value="heating">Heating</option>
+                                <option value="cooling">Cooling</option>
+                                <option value="ev_charging">EV Charging</option>
+                                <option value="lighting">Lighting</option>
+                                <option value="other">Other</option>
+                            </select>
                         </div>
                     </div>
                     
                     <div class="form-group">
                         <label>Notizen</label>
-                        <textarea id="deviceNotes"></textarea>
+                        <textarea id="deviceNotes" placeholder="Zusätzliche Informationen..."></textarea>
                     </div>
                     
                     <div class="form-group">
@@ -458,67 +463,32 @@
     
     <script>
         let devices = [];
-        let deviceTypes = [];
-        let priorities = [];
-        let categories = [];
-        
-        // Load initial data
-        async function init() {
-            await loadDeviceTypes();
-            await loadPriorities();
-            await loadCategories();
-            await loadDevices();
-            await loadStats();
-        }
-        
-        async function loadDeviceTypes() {
-            const res = await fetch('/api/devices/types');
-            const data = await res.json();
-            deviceTypes = data.types;
-            
-            const select = document.getElementById('deviceType');
-            select.innerHTML = deviceTypes.map(t => 
-                `<option value="${t.value}">${t.label}</option>`
-            ).join('');
-        }
-        
-        async function loadPriorities() {
-            const res = await fetch('/api/devices/priorities');
-            const data = await res.json();
-            priorities = data.priorities;
-            
-            const select = document.getElementById('devicePriority');
-            select.innerHTML = priorities.map(p => 
-                `<option value="${p.value}">${p.label} - ${p.description}</option>`
-            ).join('');
-        }
-        
-        async function loadCategories() {
-            const res = await fetch('/api/devices/categories');
-            const data = await res.json();
-            categories = data.categories;
-            
-            const select = document.getElementById('deviceCategory');
-            select.innerHTML = '<option value="">-- Keine --</option>' + 
-                categories.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
-        }
         
         async function loadDevices() {
-            const res = await fetch('/api/devices');
-            const data = await res.json();
-            devices = data.devices;
-            renderDevices();
+            try {
+                const res = await fetch('/api/devices');
+                const data = await res.json();
+                devices = data.devices || [];
+                renderDevices();
+                loadStats();
+            } catch (err) {
+                console.error('Failed to load devices:', err);
+            }
         }
         
         async function loadStats() {
-            const res = await fetch('/api/devices/stats');
-            const data = await res.json();
-            const stats = data.statistics;
-            
-            document.getElementById('stat-total').textContent = stats.total_devices;
-            document.getElementById('stat-controllable').textContent = stats.controllable_devices;
-            document.getElementById('stat-power').textContent = (stats.total_power / 1000).toFixed(1) + ' kW';
-            document.getElementById('stat-enabled').textContent = stats.enabled_devices;
+            try {
+                const res = await fetch('/api/devices/stats');
+                const data = await res.json();
+                const stats = data.statistics;
+                
+                document.getElementById('stat-total').textContent = stats.total_devices;
+                document.getElementById('stat-controllable').textContent = stats.controllable_devices;
+                document.getElementById('stat-power').textContent = (stats.total_power / 1000).toFixed(1) + ' kW';
+                document.getElementById('stat-enabled').textContent = stats.enabled_devices;
+            } catch (err) {
+                console.error('Failed to load stats:', err);
+            }
         }
         
         function renderDevices(filterDevices = devices) {
@@ -528,7 +498,7 @@
                 grid.innerHTML = `
                     <div class="empty-state" style="grid-column: 1/-1;">
                         <p>Keine Geräte gefunden</p>
-                        <button class="btn btn-primary" onclick="openAddModal()">Erstes Gerät hinzufügen</button>
+                        <button class="btn btn-primary" onclick="openAddModal()" style="margin-top: 20px;">Erstes Gerät hinzufügen</button>
                     </div>
                 `;
                 return;
@@ -573,7 +543,6 @@
             `).join('');
         }
         
-        // Search
         document.getElementById('searchInput').addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase();
             const filtered = devices.filter(d => 
@@ -603,9 +572,9 @@
             document.getElementById('deviceType').value = device.type;
             document.getElementById('devicePriority').value = device.priority;
             document.getElementById('deviceIp').value = device.ip;
-            document.getElementById('devicePort').value = device.port;
+            document.getElementById('devicePort').value = device.port || 80;
             document.getElementById('devicePower').value = device.power;
-            document.getElementById('deviceMinRuntime').value = device.min_runtime;
+            document.getElementById('deviceMinRuntime').value = device.min_runtime || 0;
             document.getElementById('deviceRoom').value = device.room || '';
             document.getElementById('deviceCategory').value = device.category || '';
             document.getElementById('deviceNotes').value = device.notes || '';
@@ -636,8 +605,54 @@
             try {
                 let res;
                 if (editId) {
-                    // Update
                     res = await fetch(`/api/devices/${editId}`, {
                         method: 'PUT',
-                        headers: {dy>
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(deviceData)
+                    });
+                } else {
+                    res = await fetch('/api/devices', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(deviceData)
+                    });
+                }
+                
+                const result = await res.json();
+                if (result.success) {
+                    closeModal();
+                    await loadDevices();
+                } else {
+                    alert('Fehler: ' + result.error);
+                }
+            } catch (err) {
+                alert('Fehler beim Speichern: ' + err.message);
+            }
+        }
+        
+        async function deleteDevice(deviceId) {
+            if (!confirm(`Gerät ${deviceId} wirklich löschen?`)) return;
+            
+            try {
+                const res = await fetch(`/api/devices/${deviceId}`, {method: 'DELETE'});
+                const result = await res.json();
+                
+                if (result.success) {
+                    await loadDevices();
+                } else {
+                    alert('Fehler: ' + result.error);
+                }
+            } catch (err) {
+                alert('Fehler beim Löschen: ' + err.message);
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('deviceModal').classList.remove('active');
+        }
+        
+        // Init
+        loadDevices();
+    </script>
+</body>
 </html>

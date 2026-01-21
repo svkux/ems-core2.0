@@ -1,26 +1,30 @@
-# EMS-Core v2.0 - Geräte-Konfiguration
 devices:
-  - id: "fridge"
-    name: "Kühlschrank"
-    type: "shelly_plug"
-    ip: "10.0.0.150"
-    power: 150
-    priority: "CRITICAL"
-    can_control: false
-  
-  - id: "heater"
-    name: "Heizstab"
-    type: "shelly_1pm"
-    ip: "10.0.0.151"
-    power: 3000
-    priority: "MEDIUM"
-    can_control: true
-    min_runtime: 30
-  
-  - id: "washer"
-    name: "Waschmaschine"
-    type: "shelly_plug"
-    ip: "10.0.0.152"
-    power: 2000
-    priority: "LOW"
-    can_control: true
+- id: heater
+  name: Heizstab
+  type: shelly_plug
+  ip: 10.0.0.26
+  port: 80
+  power: 300
+  priority: MEDIUM
+  can_control: true
+  min_runtime: 30
+  enabled: true
+  room: ''
+  category: heating
+  notes: ''
+  last_seen: '2026-01-21T19:58:50.528202'
+- id: pump
+  name: Zirkulationspumpe
+  type: shelly_plug
+  ip: 10.0.0.24
+  port: 80
+  power: 10
+  priority: MEDIUM
+  can_control: true
+  min_runtime: 0
+  enabled: true
+  room: ''
+  category: ''
+  notes: ''
+  discovered_at: '2026-01-21T20:00:29.084996'
+  last_seen: '2026-01-21T20:00:29.085043'
