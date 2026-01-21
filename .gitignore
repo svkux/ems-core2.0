@@ -38,3 +38,9 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# EMS-Core
+logs/*.log
+backup_*/
+*.pyc
+__pycache__/

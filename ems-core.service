@@ -1,0 +1,17 @@
+[Unit]
+Description=EMS-Core v2.0 - Energy Management System
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/ems-core2.0
+ExecStart=/opt/ems-core2.0/venv/bin/python3 /opt/ems-core2.0/core/main.py
+Restart=on-failure
+RestartSec=10s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
