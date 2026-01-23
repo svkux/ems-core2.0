@@ -125,3 +125,11 @@ if __name__ == '__main__':
         threaded=True
     )
 
+
+# Energy Sources
+from core.energy_sources import EnergySourcesManager
+from webui.api_energy import api_energy, init_energy_api
+
+energy_manager = EnergySourcesManager()
+init_energy_api(energy_manager)
+app.register_blueprint(api_energy)
