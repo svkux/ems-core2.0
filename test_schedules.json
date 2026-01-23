@@ -1,0 +1,70 @@
+{
+  "test_device": {
+    "device_id": "test_device",
+    "schedule": {
+      "monday": [
+        [
+          10,
+          14
+        ],
+        [
+          20,
+          22
+        ]
+      ],
+      "tuesday": [
+        [
+          8,
+          18
+        ]
+      ]
+    },
+    "enabled": true
+  },
+  "time_test": {
+    "device_id": "time_test",
+    "schedule": {
+      "monday": [
+        [
+          10,
+          14
+        ],
+        [
+          20,
+          22
+        ]
+      ],
+      "saturday": [
+        [
+          0,
+          24
+        ]
+      ]
+    },
+    "enabled": true
+  },
+  "scheduled_device": {
+    "device_id": "scheduled_device",
+    "schedule": {
+      "monday": [
+        [
+          10,
+          14
+        ]
+      ]
+    },
+    "enabled": true
+  },
+  "heater": {
+    "device_id": "heater",
+    "schedule": {
+      "monday": [
+        [
+          10,
+          14
+        ]
+      ]
+    },
+    "enabled": true
+  }
+}
