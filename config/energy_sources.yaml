@@ -1,0 +1,92 @@
+# EMS-Core - Energy Sources Configuration
+
+sources:
+  # PV Generation - Wähle EINE Quelle
+  
+  # Option 1: Home Assistant
+  - id: "pv_ha"
+    name: "PV from Home Assistant"
+    type: "pv_generation"
+    provider: "home_assistant"
+    enabled: false  # Aktiviere nur EINE PV-Quelle!
+    config:
+      url: "http://homeassistant.local:8123"
+      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJiNDk5OWNlMWNmNDk0MTMwYjNmNTc5NDhiZGM4NWY0MyIsImlhdCI6MTc2OTEwMzYzNiwiZXhwIjoyMDg0NDYzNjM2fQ.LJgrUYIeVU6VTDt_YKNsKZztVQ8rO-lAQLXbCbFlUe4"
+      entity_id: "sensor.pv_power"
+  
+#  # Option 2: Shelly (z.B. an PV-Anlage)
+#  - id: "pv_shelly"
+#    name: "PV from Shelly"
+#    type: "pv_generation"
+#    provider: "shelly"
+#    enabled: false
+#    config:
+#      ip: "10.0.0.14"
+#      channel: 0
+#      metric: "apower"  # Gen2: apower, Gen1: power
+  
+  # Option 3: Solax Modbus (direkt vom Wechselrichter)
+  #- id: "pv_solax"
+  #  name: "PV from Solax Inverter"
+  #  type: "pv_generation"
+  #  provider: "solax_modbus"
+  #  enabled: true  # ← Aktiviere diese für Solax
+  #  config:
+  #    ip: "10.0.0.100"
+  #    port: 502
+  #    unit_id: 1
+  
+  # Grid Power - Wähle EINE Quelle
+  
+  # Option 1: Home Assistant
+ # - id: "grid_ha"
+ #   name: "Grid from Home Assistant"
+ #   type: "grid_power"
+ #   provider: "home_assistant"
+ #   enabled: false
+ #   config:
+ #     url: "http://homeassistant.local:8123"
+ #     token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJiNDk5OWNlMWNmNDk0MTMwYjNmNTc5NDhiZGM4NWY0MyIsImlhdCI6MTc2OTEwMzYzNiwiZXhwIjoyMDg0NDYzNjM2fQ.LJgrUYIeVU6VTDt_YKNsKZztVQ8rO-lAQLXbCbFlUe4"
+ #     entity_id: "sensor.grid_power"
+  
+  # Option 2: Shelly Pro 3EM
+  - id: "grid_shelly_3em"
+    name: "Grid from Shelly Pro 3EM"
+    type: "grid_power"
+    provider: "shelly_pro_3em"
+    enabled: true  # ← Aktiviere diese für Shelly Pro 3EM
+    config:
+      ip: "10.0.0.14"
+  
+  # Option 3: SDM630 Modbus
+ # - id: "grid_sdm630"
+ #   name: "Grid from SDM630"
+ #   type: "grid_power"
+ #   provider: "sdm630_modbus"
+ #   enabled: false
+ #   config:
+ #     ip: "10.0.0.210"
+ #     port: 502
+ #     unit_id: 1
+  
+  # Option 4: Solax (wenn Grid-Daten vorhanden)
+  #- id: "grid_solax"
+  #  name: "Grid from Solax"
+  #  type: "grid_power"
+  #  provider: "solax_modbus"
+  #  enabled: false
+  #  config:
+  #    ip: "10.0.0.100"
+  #    port: 502
+  #    unit_id: 1
+
+# Berechnungs-Einstellungen
+calculation:
+  # Hausverbrauch = PV + Grid + Battery
+  house_consumption_formula: "pv + grid + battery"
+  
+  # Verfügbare Leistung = Einspeisung (negative Grid Power)
+  available_power_formula: "abs(grid) if grid < 0 else 0"
+  
+  # Hysterese
+  hysteresis: 100  # Watt

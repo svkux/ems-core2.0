@@ -75,6 +75,10 @@ def settings_page():
     """Settings Page"""
     return render_template('settings.html')
 
+@app.route('/energy_sources')
+def energy_sources_page():
+    """Energy Sources Page"""
+    return render_template('energy_sources.html')
 
 # ============================================================================
 # Health Check
@@ -120,3 +124,4 @@ if __name__ == '__main__':
         debug=True,
         threaded=True
     )
+

@@ -5,14 +5,14 @@ devices:
   ip: 10.0.0.26
   port: 80
   power: 300
-  priority: MEDIUM
+  priority: HIGH
   can_control: true
   min_runtime: 30
-  enabled: true
+  enabled: false
   room: ''
   category: heating
   notes: ''
-  last_seen: '2026-01-21T19:58:50.528202'
+  last_seen: '2026-01-23T06:25:04.164842'
 - id: pump
   name: Zirkulationspumpe
   type: shelly_plug
@@ -22,9 +22,9 @@ devices:
   priority: MEDIUM
   can_control: true
   min_runtime: 0
-  enabled: true
+  enabled: false
   room: ''
   category: ''
   notes: ''
   discovered_at: '2026-01-21T20:00:29.084996'
-  last_seen: '2026-01-21T20:00:29.085043'
+  last_seen: '2026-01-23T06:25:11.207301'
