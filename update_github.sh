@@ -36,45 +36,9 @@ echo -e "${BLUE}[INFO]${NC} Git Status:"
 git status --short
 
 echo ""
-echo -e "${BLUE}[INFO]${NC} Neue/geänderte Dateien:"
+echo -e "${BLUE}[INFO]${NC} Neue/geänderte Dateien werden hinzugefügt..."
 echo ""
 
-# Liste neue Dateien
-cat << 'EOF'
-✅ Neue Kern-Module:
-   - core/device_manager.py
-   - core/main.py
-   - core/optimizer/__init__.py
-   - core/optimizer/scheduler.py
-   - core/optimizer/prioritizer.py
-
-✅ Web UI Erweiterungen:
-   - webui/app.py (aktualisiert)
-   - webui/api_routes.py (neu)
-   - webui/templates/devices.html (neu)
-
-✅ Konfiguration:
-   - config/settings.yaml
-   - config/devices.yaml
-   - config/schedules.json
-   - config/priorities.json
-   - config/device_mapping.json (wird automatisch erstellt)
-
-✅ Scripts:
-   - deploy_ems_updates.sh
-   - test_ems_system.py
-   - update_github.sh
-
-✅ Service:
-   - ems-core.service
-
-✅ Dokumentation:
-   - README.md
-   - DEVELOPMENT.md (neu)
-   - CHANGELOG.md (neu)
-EOF
-
-echo ""
 read -p "Alle Änderungen zu Git hinzufügen? (y/n) " -n 1 -r
 echo ""
 
@@ -83,25 +47,47 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
-# Git Add
+# Git Add - AKTUALISIERT mit allen neuen Dateien
 echo -e "${BLUE}[INFO]${NC} Füge Dateien hinzu..."
 
+# Core Module
 git add core/device_manager.py
 git add core/main.py
+git add core/energy_sources.py
 git add core/optimizer/
+
+# Controllers
+git add core/controllers/
+
+# Integrations
+git add core/integrations/
+
+# Web UI
 git add webui/app.py
 git add webui/api_routes.py
-git add webui/templates/devices.html
+git add webui/api_energy.py
+git add webui/templates/
+
+# Config
 git add config/*.yaml
 git add config/*.json
+
+# Scripts
 git add deploy_ems_updates.sh
 git add test_ems_system.py
 git add update_github.sh
+git add setup_complete_system.sh
+
+# Services
 git add ems-core.service
+
+# Dokumentation
 git add README.md
 git add .gitignore
+git add DEPLOYMENT_SUMMARY.md
+git add QUICK_REFERENCE.md
 
-# Optional: Füge neue Docs hinzu wenn vorhanden
+# Optional Docs
 [ -f "DEVELOPMENT.md" ] && git add DEVELOPMENT.md
 [ -f "CHANGELOG.md" ] && git add CHANGELOG.md
 
@@ -113,16 +99,27 @@ echo "Commit Message eingeben (oder Enter für Standard-Message):"
 read -r COMMIT_MSG
 
 if [ -z "$COMMIT_MSG" ]; then
-    COMMIT_MSG="feat: Add Device Manager and Web UI for device management
+    COMMIT_MSG="feat: Add Energy Sources Management System
 
-- Implemented DeviceManager for centralized device configuration
-- Added REST API endpoints for device CRUD operations
-- Created Device Management Web UI with add/edit/delete functionality
-- Added device discovery import workflow
-- Updated core/main.py with device integration
-- Implemented scheduler and prioritizer modules
-- Added comprehensive testing suite
-- Updated documentation"
+## New Features
+- Energy Sources Manager with multi-provider support
+- Support for Home Assistant, Shelly, Solax Modbus, SDM630
+- Web UI for Energy Sources configuration
+- REST API for energy data management
+- Real-time energy monitoring
+- Automatic house consumption calculation
+
+## Improvements
+- Updated Device Management UI
+- Enhanced API error handling
+- Fixed JSON serialization for Enums
+- Updated documentation (DEPLOYMENT_SUMMARY, QUICK_REFERENCE)
+
+## Technical
+- core/energy_sources.py - Energy data aggregation
+- webui/api_energy.py - Energy Sources API
+- webui/templates/energy_sources.html - Energy UI
+- Async data updates from multiple sources"
 fi
 
 # Git Commit
@@ -139,9 +136,7 @@ echo ""
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo -e "${BLUE}[INFO]${NC} Pushing to GitHub..."
     
-    # Prüfe Branch
     BRANCH=$(git branch --show-current)
-    
     git push -u origin $BRANCH
     
     echo -e "${GREEN}[SUCCESS]${NC} Push erfolgreich!"

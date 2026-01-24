@@ -64,15 +64,19 @@ git push origin main
 | Datei | Beschreibung |
 |-------|--------------|
 | `core/device_manager.py` | Device CRUD & Management |
+| `core/energy_sources.py` | 🆕 Energy Sources Manager |
 | `core/main.py` | Haupt-Optimizer Loop |
 | `core/optimizer/scheduler.py` | Zeitplan-Management |
 | `core/optimizer/prioritizer.py` | Priorisierungs-Logik |
 | `webui/app.py` | Flask Web Server |
 | `webui/api_routes.py` | REST API Endpoints |
+| `webui/api_energy.py` | 🆕 Energy Sources API |
 | `webui/templates/devices.html` | Device Management UI |
+| `webui/templates/energy_sources.html` | 🆕 Energy Sources UI |
 | `config/settings.yaml` | System-Konfiguration |
 | `config/devices.yaml` | Geräte-Definitionen |
 | `config/schedules.json` | Zeitpläne |
+| `config/energy_sources.yaml` | 🆕 Energy Sources Config |
 
 ---
 
@@ -80,11 +84,12 @@ git push origin main
 
 | Service | URL |
 |---------|-----|
-| Web UI | http://10.0.0.252:8080 |
-| Device Management | http://10.0.0.252:8080/devices |
-| Discovery | http://10.0.0.252:8080/discovery |
-| API Docs | http://10.0.0.252:8080/api/devices |
-| Health Check | http://10.0.0.252:8080/health |
+| Web UI | http://10.0.0.156:8080 |
+| Device Management | http://10.0.0.156:8080/devices |
+| Energy Sources | http://10.0.0.156:8080/energy_sources 🆕 |
+| API Docs | http://10.0.0.156:8080/api/devices |
+| Energy API | http://10.0.0.156:8080/api/energy/current 🆕 |
+| Health Check | http://10.0.0.156:8080/health |
 
 ---
 
