@@ -257,6 +257,11 @@
             justify-content: flex-end;
             gap: 10px;
         }
+        
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -269,14 +274,13 @@
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="switchTab('overview')">📊 Übersicht</button>
             <button class="nav-tab" onclick="switchTab('sources')">🔌 Quellen</button>
-            <button class="nav-tab" onclick="switchTab('config')">⚙️ Konfiguration</button>
         </div>
         
         <!-- Tab: Übersicht -->
         <div class="tab-content active" id="tab-overview">
             <h2 style="margin-bottom: 20px;">Aktuelle Werte</h2>
             
-            <div class="current-values">
+            <div class="current-values" id="values-container">
                 <div class="value-card">
                     <h3>PV Erzeugung</h3>
                     <div>
@@ -314,7 +318,7 @@
                 </div>
             </div>
             
-            <button class="btn btn-primary" onclick="refreshValues()">🔄 Aktualisieren</button>
+            <button class="btn btn-primary" onclick="manualRefresh()" id="refresh-btn">🔄 Aktualisieren</button>
         </div>
         
         <!-- Tab: Quellen -->
@@ -341,21 +345,6 @@
                 <h3>🔋 Batterie</h3>
                 <div id="sources-battery"></div>
             </div>
-        </div>
-        
-        <!-- Tab: Konfiguration -->
-        <div class="tab-content" id="tab-config">
-            <h2 style="margin-bottom: 20px;">Berechnungs-Einstellungen</h2>
-            
-            <div class="form-group">
-                <label>Hysterese (Watt)</label>
-                <input type="number" id="config-hysteresis" value="100">
-                <p style="font-size: 12px; color: #6b7280; margin-top: 5px;">
-                    Mindest-Unterschied für Schaltungen
-                </p>
-            </div>
-            
-            <button class="btn btn-primary" onclick="saveConfig()">💾 Speichern</button>
         </div>
     </div>
     
@@ -403,6 +392,7 @@
     
     <script>
         let sources = [];
+        let autoRefreshInterval;
         
         function switchTab(tab) {
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -410,6 +400,12 @@
             
             event.target.classList.add('active');
             document.getElementById('tab-' + tab).classList.add('active');
+            
+            if (tab === 'overview') {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
         }
         
         async function loadSources() {
@@ -454,7 +450,7 @@
                     <p>${source.provider} • ${source.config.ip || source.config.entity_id || 'Config'}</p>
                 </div>
                 <div class="source-actions">
-                    <span class="source-value">${source.last_value || 0}W</span>
+                    <span class="source-value">${Math.round(source.last_value || 0)}W</span>
                     <label class="toggle-switch">
                         <input type="checkbox" ${source.enabled ? 'checked' : ''} 
                                onchange="toggleSource('${source.id}', this.checked)">
@@ -464,6 +460,67 @@
                 </div>
             `;
             return card;
+        }
+        
+        async function manualRefresh() {
+            const btn = document.getElementById('refresh-btn');
+            const container = document.getElementById('values-container');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Lädt...';
+            container.classList.add('loading');
+            
+            try {
+                console.log('Calling /api/energy/refresh...');
+                const refreshRes = await fetch('/api/energy/refresh', {
+                    method: 'POST'
+                });
+                const refreshData = await refreshRes.json();
+                console.log('Refresh response:', refreshData);
+                
+                if (refreshData.success) {
+                    await updateValues();
+                } else {
+                    console.error('Refresh failed:', refreshData.error);
+                    alert('Fehler beim Aktualisieren: ' + refreshData.error);
+                }
+            } catch (err) {
+                console.error('Refresh error:', err);
+                alert('Fehler beim Aktualisieren: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 Aktualisieren';
+                container.classList.remove('loading');
+            }
+        }
+        
+        async function updateValues() {
+            try {
+                const res = await fetch('/api/energy/current');
+                const data = await res.json();
+                
+                console.log('Current values:', data);
+                
+                document.getElementById('val-pv').textContent = Math.round(data.pv_power || 0);
+                document.getElementById('val-grid').textContent = Math.round(data.grid_power || 0);
+                document.getElementById('val-battery').textContent = Math.round(data.battery_power || 0);
+                document.getElementById('val-house').textContent = Math.round(data.house_consumption || 0);
+                document.getElementById('val-available').textContent = Math.round(data.available_power || 0);
+            } catch (err) {
+                console.error('Update values failed:', err);
+            }
+        }
+        
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            updateValues();
+            autoRefreshInterval = setInterval(updateValues, 10000); // Alle 10s
+        }
+        
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
         }
         
         function openAddSourceModal() {
@@ -479,7 +536,6 @@
             const type = document.getElementById('source-type').value;
             const provider = document.getElementById('source-provider');
             
-            // Provider Optionen je nach Typ
             if (type === 'pv_generation') {
                 provider.innerHTML = `
                     <option value="home_assistant">Home Assistant</option>
@@ -491,7 +547,6 @@
                     <option value="home_assistant">Home Assistant</option>
                     <option value="shelly_pro_3em">Shelly Pro 3EM</option>
                     <option value="sdm630_modbus">SDM630 (Modbus)</option>
-                    <option value="solax_modbus">Solax (Modbus)</option>
                 `;
             } else if (type === 'battery') {
                 provider.innerHTML = `
@@ -528,7 +583,7 @@
                 html = `
                     <div class="form-group">
                         <label>IP-Adresse</label>
-                        <input type="text" id="config-ip" placeholder="10.0.0.150">
+                        <input type="text" id="config-ip" placeholder="10.0.0.14">
                     </div>
                 `;
             } else if (provider === 'solax_modbus' || provider === 'sdm630_modbus') {
@@ -602,7 +657,7 @@
         
         async function toggleSource(sourceId, enabled) {
             try {
-                const res = await fetch(`/api/energy/sources/${sourceId}/toggle`, {
+                await fetch(`/api/energy/sources/${sourceId}/toggle`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({enabled})
@@ -625,25 +680,10 @@
             }
         }
         
-        async function refreshValues() {
-            try {
-                const res = await fetch('/api/energy/current');
-                const data = await res.json();
-                
-                document.getElementById('val-pv').textContent = Math.round(data.pv_power);
-                document.getElementById('val-grid').textContent = Math.round(data.grid_power);
-                document.getElementById('val-battery').textContent = Math.round(data.battery_power);
-                document.getElementById('val-house').textContent = Math.round(data.house_consumption);
-                document.getElementById('val-available').textContent = Math.round(data.available_power);
-            } catch (err) {
-                console.error('Refresh failed:', err);
-            }
-        }
-        
         // Init
         loadSources();
-        refreshValues();
-        setInterval(refreshValues, 5000); // Auto-refresh alle 5s
+        startAutoRefresh();
     </script>
 </body>
 </html>
+
