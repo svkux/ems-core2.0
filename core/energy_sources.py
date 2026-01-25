@@ -4,10 +4,13 @@ EMS-Core v2.0 - Energy Sources Manager
 Verwaltet verschiedene Energie-Datenquellen (PV, Grid, etc.)
 """
 import asyncio
+import json
 import logging
 from typing import Dict, Optional, List
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
+from pathlib import Path
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +50,11 @@ class EnergySource:
 class EnergySourcesManager:
     """Manager für alle Energie-Datenquellen"""
     
-    def __init__(self):
+    def __init__(self, config_file: str = "config/energy_sources.json"):
+        self.config_file = Path(config_file)
         self.sources: Dict[str, EnergySource] = {}
-        
-        # Controller
         self.controllers = {}
         
-        # Aktuelle Werte
         self.current_data = {
             'pv_power': 0.0,
             'grid_power': 0.0,
@@ -62,16 +63,74 @@ class EnergySourcesManager:
             'house_consumption': 0.0,
             'available_power': 0.0
         }
+        
+        self.load_sources()
+    
+    def load_sources(self):
+        """Lade Quellen aus JSON"""
+        try:
+            if self.config_file.exists():
+                with open(self.config_file, 'r') as f:
+                    data = json.load(f)
+                
+                for source_data in data.get('sources', []):
+                    source = EnergySource(
+                        id=source_data['id'],
+                        name=source_data['name'],
+                        type=SourceType(source_data['type']),
+                        provider=SourceProvider(source_data['provider']),
+                        config=source_data['config'],
+                        enabled=source_data.get('enabled', True),
+                        last_value=source_data.get('last_value', 0.0),
+                        last_update=source_data.get('last_update')
+                    )
+                    self.sources[source.id] = source
+                
+                logger.info(f"Loaded {len(self.sources)} energy sources")
+            else:
+                logger.info("No energy sources config found, starting fresh")
+        except Exception as e:
+            logger.error(f"Failed to load energy sources: {e}")
+    
+    def save_sources(self):
+        """Speichere Quellen als JSON"""
+        try:
+            self.config_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            sources_list = []
+            for source in self.sources.values():
+                source_dict = {
+                    'id': source.id,
+                    'name': source.name,
+                    'type': source.type.value,
+                    'provider': source.provider.value,
+                    'config': source.config,
+                    'enabled': source.enabled,
+                    'last_value': source.last_value,
+                    'last_update': source.last_update
+                }
+                sources_list.append(source_dict)
+            
+            data = {'sources': sources_list}
+            
+            with open(self.config_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            
+            logger.info(f"Saved {len(self.sources)} energy sources")
+        except Exception as e:
+            logger.error(f"Failed to save energy sources: {e}")
     
     def add_source(self, source: EnergySource):
         """Füge Datenquelle hinzu"""
         self.sources[source.id] = source
+        self.save_sources()
         logger.info(f"Added energy source: {source.name} ({source.type.value} via {source.provider.value})")
     
     def remove_source(self, source_id: str):
         """Entferne Datenquelle"""
         if source_id in self.sources:
             del self.sources[source_id]
+            self.save_sources()
             logger.info(f"Removed energy source: {source_id}")
     
     async def read_home_assistant(self, config: Dict) -> Optional[float]:
@@ -90,32 +149,34 @@ class EnergySourcesManager:
                     if response.status == 200:
                         data = await response.json()
                         value = float(data['state'])
-                        logger.debug(f"HA {config['entity_id']}: {value}W")
+                        logger.info(f"✓ HA {config['entity_id']}: {value}W")
                         return value
                     else:
-                        logger.error(f"HA API error: {response.status}")
+                        logger.error(f"HA API error {response.status}: {config['entity_id']}")
                         return None
         except Exception as e:
             logger.error(f"Failed to read from Home Assistant: {e}")
             return None
     
     async def read_shelly_3em(self, config: Dict) -> Optional[Dict]:
-        """
-        Lese Wert von Shelly 3EM (Gen1)
-        
-        Returns: {"total_power": 1865.3, "phase_a": 1611.5, ...}
-        """
+        """Lese Wert von Shelly 3EM (Gen1)"""
         try:
             import aiohttp
             
-            url = f"http://{config['ip']}/status"
+            ip = config.get('ip')
+            if not ip:
+                logger.error("Shelly 3EM: No IP in config!")
+                return None
+            
+            url = f"http://{ip}/status"
+            logger.info(f"Reading Shelly 3EM from {url}...")
             
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=5) as response:
                     if response.status == 200:
                         data = await response.json()
                         
-                        if 'emeters' in data:
+                        if 'emeters' in data and 'total_power' in data:
                             emeters = data['emeters']
                             result = {
                                 'total_power': data.get('total_power', 0),
@@ -124,125 +185,16 @@ class EnergySourcesManager:
                                 'phase_c': emeters[2].get('power', 0) if len(emeters) > 2 else 0
                             }
                             
-                            logger.info(f"Shelly 3EM: {result['total_power']}W (A:{result['phase_a']}W, B:{result['phase_b']}W, C:{result['phase_c']}W)")
+                            logger.info(f"✓ Shelly 3EM: {result['total_power']}W (A:{result['phase_a']}W, B:{result['phase_b']}W, C:{result['phase_c']}W)")
                             return result
                         else:
-                            logger.error(f"Unknown Shelly 3EM format")
+                            logger.error(f"Shelly 3EM: Unexpected format")
                             return None
                     else:
-                        logger.error(f"Shelly 3EM error: {response.status}")
+                        logger.error(f"Shelly 3EM HTTP error: {response.status}")
                         return None
         except Exception as e:
             logger.error(f"Failed to read from Shelly 3EM: {e}")
-            return None
-    
-    async def read_shelly(self, config: Dict) -> Optional[float]:
-        """Lese Wert von Shelly Gen1/2"""
-        try:
-            import aiohttp
-            
-            url = f"http://{config['ip']}/status"
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=5) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        
-                        # Shelly Gen2/Plus
-                        if 'switch:0' in data:
-                            switch_data = data[f"switch:{config.get('channel', 0)}"]
-                            value = switch_data.get(config.get('metric', 'apower'), 0)
-                        # Shelly Gen1
-                        elif 'meters' in data:
-                            meter = data['meters'][config.get('channel', 0)]
-                            value = meter.get(config.get('metric', 'power'), 0)
-                        else:
-                            logger.error(f"Unknown Shelly format")
-                            return None
-                        
-                        logger.debug(f"Shelly {config['ip']}: {value}W")
-                        return float(value)
-                    else:
-                        logger.error(f"Shelly error: {response.status}")
-                        return None
-        except Exception as e:
-            logger.error(f"Failed to read from Shelly: {e}")
-            return None
-    
-    async def read_shelly_pro_3em(self, config: Dict) -> Optional[Dict]:
-        """Lese Wert von Shelly Pro 3EM"""
-        try:
-            import aiohttp
-            
-            url = f"http://{config['ip']}/rpc/EM.GetStatus?id=0"
-            
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=5) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        
-                        result = {
-                            'total_power': data.get('total_act_power', 0),
-                            'phase_a': data.get('a_act_power', 0),
-                            'phase_b': data.get('b_act_power', 0),
-                            'phase_c': data.get('c_act_power', 0)
-                        }
-                        
-                        logger.debug(f"Shelly Pro 3EM: {result['total_power']}W")
-                        return result
-                    else:
-                        logger.error(f"Shelly Pro 3EM error: {response.status}")
-                        return None
-        except Exception as e:
-            logger.error(f"Failed to read from Shelly Pro 3EM: {e}")
-            return None
-    
-    async def read_solax_modbus(self, config: Dict) -> Optional[Dict]:
-        """Lese Daten von Solax via Modbus"""
-        try:
-            from core.controllers.solax import SolaxModbusController
-            
-            if 'solax_controller' not in self.controllers:
-                self.controllers['solax_controller'] = SolaxModbusController(
-                    host=config['ip'],
-                    port=config.get('port', 502),
-                    unit_id=config.get('unit_id', 1)
-                )
-            
-            controller = self.controllers['solax_controller']
-            data = await controller.read_realtime_data()
-            
-            if data:
-                logger.debug(f"Solax: PV={data.get('pv_power', 0)}W, Grid={data.get('grid_power', 0)}W")
-                return data
-            return None
-            
-        except Exception as e:
-            logger.error(f"Failed to read from Solax: {e}")
-            return None
-    
-    async def read_sdm630_modbus(self, config: Dict) -> Optional[Dict]:
-        """Lese Daten von SDM630 via Modbus"""
-        try:
-            from core.controllers.sdm630 import SDM630ModbusController
-            
-            if 'sdm630_controller' not in self.controllers:
-                self.controllers['sdm630_controller'] = SDM630ModbusController(
-                    host=config['ip'],
-                    port=config.get('port', 502),
-                    unit_id=config.get('unit_id', 1)
-                )
-            
-            controller = self.controllers['sdm630_controller']
-            data = await controller.read_power()
-            
-            if data:
-                logger.debug(f"SDM630: {data.get('total_power', 0)}W")
-                return data
-            return None
-            
-        except Exception as e:
-            logger.error(f"Failed to read from SDM630: {e}")
             return None
     
     async def update_all_sources(self):
@@ -252,11 +204,11 @@ class EnergySourcesManager:
         grid_values = []
         battery_data = None
         
-        logger.info("Updating all energy sources...")
+        logger.info(f"Updating {len(self.sources)} energy sources...")
         
         for source in self.sources.values():
             if not source.enabled:
-                logger.debug(f"Skipping disabled source: {source.id}")
+                logger.debug(f"Skipping disabled: {source.id}")
                 continue
             
             try:
@@ -266,59 +218,28 @@ class EnergySourcesManager:
                 if source.provider == SourceProvider.HOME_ASSISTANT:
                     value = await self.read_home_assistant(source.config)
                 
-                # Shelly 3EM (Gen1)
+                # Shelly 3EM
                 elif source.provider == SourceProvider.SHELLY_3EM:
                     data = await self.read_shelly_3em(source.config)
                     if data:
                         value = data['total_power']
                 
-                # Shelly
-                elif source.provider == SourceProvider.SHELLY:
-                    value = await self.read_shelly(source.config)
-                
-                # Shelly Pro 3EM
-                elif source.provider == SourceProvider.SHELLY_PRO_3EM:
-                    data = await self.read_shelly_pro_3em(source.config)
-                    if data:
-                        value = data['total_power']
-                
-                # Solax Modbus
-                elif source.provider == SourceProvider.SOLAX_MODBUS:
-                    data = await self.read_solax_modbus(source.config)
-                    if data:
-                        if source.type == SourceType.PV_GENERATION:
-                            value = data.get('pv_power', 0)
-                        elif source.type == SourceType.GRID_POWER:
-                            value = data.get('grid_power', 0)
-                        elif source.type == SourceType.BATTERY:
-                            battery_data = {
-                                'power': data.get('battery_power', 0),
-                                'soc': data.get('battery_soc', 0)
-                            }
-                
-                # SDM630 Modbus
-                elif source.provider == SourceProvider.SDM630_MODBUS:
-                    data = await self.read_sdm630_modbus(source.config)
-                    if data:
-                        value = data.get('total_power', 0)
-                
                 # Wert speichern
                 if value is not None:
                     source.last_value = value
-                    logger.info(f"✓ {source.name}: {value}W")
+                    source.last_update = datetime.now().isoformat()
                     
-                    # Nach Typ sammeln
                     if source.type == SourceType.PV_GENERATION:
                         pv_values.append(value)
                     elif source.type == SourceType.GRID_POWER:
                         grid_values.append(value)
                 else:
-                    logger.warning(f"✗ {source.name}: No data received")
+                    logger.warning(f"✗ {source.name}: No data")
                         
             except Exception as e:
-                logger.error(f"Failed to update source {source.id}: {e}")
+                logger.error(f"Source {source.id} error: {e}")
         
-        # Mittelwerte berechnen
+        # Berechne Werte
         self.current_data['pv_power'] = sum(pv_values) / len(pv_values) if pv_values else 0
         self.current_data['grid_power'] = sum(grid_values) / len(grid_values) if grid_values else 0
         
@@ -326,24 +247,24 @@ class EnergySourcesManager:
             self.current_data['battery_power'] = battery_data['power']
             self.current_data['battery_soc'] = battery_data['soc']
         
-        # Hausverbrauch berechnen
         self.current_data['house_consumption'] = (
             self.current_data['pv_power'] +
             self.current_data['grid_power'] +
             self.current_data['battery_power']
         )
         
-        # Verfügbare Leistung
         if self.current_data['grid_power'] < 0:
             self.current_data['available_power'] = abs(self.current_data['grid_power'])
         else:
             self.current_data['available_power'] = 0
         
+        # Speichere aktualisierte Werte
+        self.save_sources()
+        
         logger.info(
             f"==> PV={self.current_data['pv_power']:.0f}W, "
             f"Grid={self.current_data['grid_power']:.0f}W, "
-            f"House={self.current_data['house_consumption']:.0f}W, "
-            f"Available={self.current_data['available_power']:.0f}W"
+            f"House={self.current_data['house_consumption']:.0f}W"
         )
     
     def get_current_data(self) -> Dict:
@@ -353,8 +274,3 @@ class EnergySourcesManager:
     def get_source(self, source_id: str) -> Optional[EnergySource]:
         """Hole Datenquelle"""
         return self.sources.get(source_id)
-    
-    def get_sources_by_type(self, source_type: SourceType) -> List[EnergySource]:
-        """Hole alle Quellen eines Typs"""
-        return [s for s in self.sources.values() if s.type == source_type]
-

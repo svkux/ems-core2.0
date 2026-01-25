@@ -199,13 +199,6 @@
             color: #6b7280;
         }
         
-        .value-card .soc-display {
-            font-size: 18px;
-            margin-top: 10px;
-            color: #059669;
-            font-weight: 600;
-        }
-        
         .modal {
             display: none;
             position: fixed;
@@ -307,9 +300,9 @@
                     <div>
                         <span class="value" id="val-battery">0</span>
                         <span class="unit">W</span>
-                    </div>
-                    <div class="soc-display">
-                        🔋 SOC: <span id="val-battery-soc">0</span>%
+                        <div style="font-size: 14px; margin-top: 5px; color: #6b7280;">
+                            SOC: <span id="val-battery-soc">0</span>%
+                        </div>
                     </div>
                 </div>
                 <div class="value-card">
@@ -338,16 +331,19 @@
                 <button class="btn btn-primary" onclick="openAddSourceModal()">➕ Quelle hinzufügen</button>
             </div>
             
+            <!-- PV Generation -->
             <div class="source-type-section">
                 <h3>☀️ PV Erzeugung</h3>
                 <div id="sources-pv"></div>
             </div>
             
+            <!-- Grid Power -->
             <div class="source-type-section">
                 <h3>⚡ Netz-Messung</h3>
                 <div id="sources-grid"></div>
             </div>
             
+            <!-- Battery -->
             <div class="source-type-section">
                 <h3>🔋 Batterie</h3>
                 <div id="sources-battery"></div>
@@ -375,6 +371,11 @@
                     <label>Provider *</label>
                     <select id="source-provider" onchange="updateConfigFields()">
                         <option value="home_assistant">Home Assistant</option>
+                        <option value="shelly">Shelly</option>
+                        <option value="shelly_3em">Shelly 3EM</option>
+                        <option value="shelly_pro_3em">Shelly Pro 3EM</option>
+                        <option value="solax_modbus">Solax (Modbus)</option>
+                        <option value="sdm630_modbus">SDM630 (Modbus)</option>
                     </select>
                 </div>
                 
@@ -383,6 +384,7 @@
                     <input type="text" id="source-name" placeholder="z.B. PV from Solax">
                 </div>
                 
+                <!-- Config Fields (dynamisch) -->
                 <div id="config-fields"></div>
             </div>
             <div class="modal-footer">
@@ -452,7 +454,7 @@
                     <p>${source.provider} • ${source.config.ip || source.config.entity_id || 'Config'}</p>
                 </div>
                 <div class="source-actions">
-                    <span class="source-value">${Math.round(source.last_value || 0)}${source.type === 'battery' ? '%' : 'W'}</span>
+                    <span class="source-value">${Math.round(source.last_value || 0)}W</span>
                     <label class="toggle-switch">
                         <input type="checkbox" ${source.enabled ? 'checked' : ''} 
                                onchange="toggleSource('${source.id}', this.checked)">
@@ -473,16 +475,22 @@
             container.classList.add('loading');
             
             try {
-                const refreshRes = await fetch('/api/energy/refresh', { method: 'POST' });
+                console.log('Calling /api/energy/refresh...');
+                const refreshRes = await fetch('/api/energy/refresh', {
+                    method: 'POST'
+                });
                 const refreshData = await refreshRes.json();
+                console.log('Refresh response:', refreshData);
                 
                 if (refreshData.success) {
                     await updateValues();
                 } else {
-                    alert('Fehler: ' + refreshData.error);
+                    console.error('Refresh failed:', refreshData.error);
+                    alert('Fehler beim Aktualisieren: ' + refreshData.error);
                 }
             } catch (err) {
-                alert('Fehler: ' + err.message);
+                console.error('Refresh error:', err);
+                alert('Fehler beim Aktualisieren: ' + err.message);
             } finally {
                 btn.disabled = false;
                 btn.textContent = '🔄 Aktualisieren';
@@ -495,6 +503,8 @@
                 const res = await fetch('/api/energy/current');
                 const data = await res.json();
                 
+                console.log('Current values:', data);
+                
                 document.getElementById('val-pv').textContent = Math.round(data.pv_power || 0);
                 document.getElementById('val-grid').textContent = Math.round(data.grid_power || 0);
                 document.getElementById('val-battery').textContent = Math.round(data.battery_power || 0);
@@ -502,14 +512,14 @@
                 document.getElementById('val-house').textContent = Math.round(data.house_consumption || 0);
                 document.getElementById('val-available').textContent = Math.round(data.available_power || 0);
             } catch (err) {
-                console.error('Update failed:', err);
+                console.error('Update values failed:', err);
             }
         }
         
         function startAutoRefresh() {
             stopAutoRefresh();
             updateValues();
-            autoRefreshInterval = setInterval(updateValues, 10000);
+            autoRefreshInterval = setInterval(updateValues, 10000); // Alle 10s
         }
         
         function stopAutoRefresh() {
@@ -532,11 +542,23 @@
             const provider = document.getElementById('source-provider');
             
             if (type === 'pv_generation') {
-                provider.innerHTML = '<option value="home_assistant">Home Assistant</option><option value="solax_modbus">Solax (Modbus)</option>';
+                provider.innerHTML = `
+                    <option value="home_assistant">Home Assistant</option>
+                    <option value="shelly">Shelly</option>
+                    <option value="solax_modbus">Solax (Modbus)</option>
+                `;
             } else if (type === 'grid_power') {
-                provider.innerHTML = '<option value="home_assistant">Home Assistant</option><option value="shelly_3em">Shelly 3EM</option><option value="shelly_pro_3em">Shelly Pro 3EM</option><option value="sdm630_modbus">SDM630 (Modbus)</option>';
+                provider.innerHTML = `
+                    <option value="home_assistant">Home Assistant</option>
+                    <option value="shelly_3em">Shelly 3EM</option>
+                    <option value="shelly_pro_3em">Shelly Pro 3EM</option>
+                    <option value="sdm630_modbus">SDM630 (Modbus)</option>
+                `;
             } else if (type === 'battery') {
-                provider.innerHTML = '<option value="home_assistant">Home Assistant</option><option value="solax_modbus">Solax (Modbus)</option>';
+                provider.innerHTML = `
+                    <option value="solax_modbus">Solax (Modbus)</option>
+                    <option value="home_assistant">Home Assistant</option>
+                `;
             }
             
             updateConfigFields();
@@ -552,7 +574,7 @@
                 html = `
                     <div class="form-group">
                         <label>Home Assistant URL</label>
-                        <input type="text" id="config-url" placeholder="http://10.0.0.189:8123">
+                        <input type="text" id="config-url" placeholder="http://homeassistant.local:8123">
                     </div>
                     <div class="form-group">
                         <label>Access Token</label>
@@ -601,7 +623,9 @@
                     entity_id: document.getElementById('config-entity').value
                 };
             } else if (provider === 'shelly' || provider === 'shelly_3em' || provider === 'shelly_pro_3em') {
-                config = { ip: document.getElementById('config-ip').value };
+                config = {
+                    ip: document.getElementById('config-ip').value
+                };
             } else if (provider === 'solax_modbus' || provider === 'sdm630_modbus') {
                 config = {
                     ip: document.getElementById('config-ip').value,
@@ -644,6 +668,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({enabled})
                 });
+                
                 await loadSources();
             } catch (err) {
                 console.error('Toggle failed:', err);
@@ -661,8 +686,10 @@
             }
         }
         
+        // Init
         loadSources();
         startAutoRefresh();
     </script>
 </body>
 </html>
+
