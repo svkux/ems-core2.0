@@ -24,6 +24,7 @@ class SourceProvider(Enum):
     """Provider für Datenquellen"""
     HOME_ASSISTANT = "home_assistant"
     SHELLY = "shelly"
+    SHELLY_3EM = "shelly_3em"
     SOLAX_MODBUS = "solax_modbus"
     SDM630_MODBUS = "sdm630_modbus"
     SHELLY_PRO_3EM = "shelly_pro_3em"
@@ -74,16 +75,7 @@ class EnergySourcesManager:
             logger.info(f"Removed energy source: {source_id}")
     
     async def read_home_assistant(self, config: Dict) -> Optional[float]:
-        """
-        Lese Wert von Home Assistant
-        
-        Config:
-        {
-            "url": "http://homeassistant.local:8123",
-            "token": "your_token",
-            "entity_id": "sensor.pv_power"
-        }
-        """
+        """Lese Wert von Home Assistant"""
         try:
             import aiohttp
             
@@ -98,7 +90,7 @@ class EnergySourcesManager:
                     if response.status == 200:
                         data = await response.json()
                         value = float(data['state'])
-                        logger.debug(f"HA {config['entity_id']}: {value}")
+                        logger.debug(f"HA {config['entity_id']}: {value}W")
                         return value
                     else:
                         logger.error(f"HA API error: {response.status}")
@@ -107,17 +99,45 @@ class EnergySourcesManager:
             logger.error(f"Failed to read from Home Assistant: {e}")
             return None
     
-    async def read_shelly(self, config: Dict) -> Optional[float]:
+    async def read_shelly_3em(self, config: Dict) -> Optional[Dict]:
         """
-        Lese Wert von Shelly
+        Lese Wert von Shelly 3EM (Gen1)
         
-        Config:
-        {
-            "ip": "10.0.0.150",
-            "channel": 0,
-            "metric": "power"  # power, voltage, current, energy
-        }
+        Returns: {"total_power": 1865.3, "phase_a": 1611.5, ...}
         """
+        try:
+            import aiohttp
+            
+            url = f"http://{config['ip']}/status"
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=5) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        
+                        if 'emeters' in data:
+                            emeters = data['emeters']
+                            result = {
+                                'total_power': data.get('total_power', 0),
+                                'phase_a': emeters[0].get('power', 0) if len(emeters) > 0 else 0,
+                                'phase_b': emeters[1].get('power', 0) if len(emeters) > 1 else 0,
+                                'phase_c': emeters[2].get('power', 0) if len(emeters) > 2 else 0
+                            }
+                            
+                            logger.info(f"Shelly 3EM: {result['total_power']}W (A:{result['phase_a']}W, B:{result['phase_b']}W, C:{result['phase_c']}W)")
+                            return result
+                        else:
+                            logger.error(f"Unknown Shelly 3EM format")
+                            return None
+                    else:
+                        logger.error(f"Shelly 3EM error: {response.status}")
+                        return None
+        except Exception as e:
+            logger.error(f"Failed to read from Shelly 3EM: {e}")
+            return None
+    
+    async def read_shelly(self, config: Dict) -> Optional[float]:
+        """Lese Wert von Shelly Gen1/2"""
         try:
             import aiohttp
             
@@ -150,22 +170,7 @@ class EnergySourcesManager:
             return None
     
     async def read_shelly_pro_3em(self, config: Dict) -> Optional[Dict]:
-        """
-        Lese Wert von Shelly Pro 3EM
-        
-        Config:
-        {
-            "ip": "10.0.0.151"
-        }
-        
-        Returns:
-        {
-            "total_power": 5432.1,
-            "phase_a": 1234.5,
-            "phase_b": 2345.6,
-            "phase_c": 1852.0
-        }
-        """
+        """Lese Wert von Shelly Pro 3EM"""
         try:
             import aiohttp
             
@@ -193,24 +198,7 @@ class EnergySourcesManager:
             return None
     
     async def read_solax_modbus(self, config: Dict) -> Optional[Dict]:
-        """
-        Lese Daten von Solax via Modbus
-        
-        Config:
-        {
-            "ip": "10.0.0.100",
-            "port": 502,
-            "unit_id": 1
-        }
-        
-        Returns:
-        {
-            "pv_power": 4500,
-            "battery_power": -1200,
-            "battery_soc": 85,
-            "grid_power": -500
-        }
-        """
+        """Lese Daten von Solax via Modbus"""
         try:
             from core.controllers.solax import SolaxModbusController
             
@@ -234,24 +222,7 @@ class EnergySourcesManager:
             return None
     
     async def read_sdm630_modbus(self, config: Dict) -> Optional[Dict]:
-        """
-        Lese Daten von SDM630 via Modbus
-        
-        Config:
-        {
-            "ip": "10.0.0.101",
-            "port": 502,
-            "unit_id": 1
-        }
-        
-        Returns:
-        {
-            "total_power": 3456.7,
-            "phase_a_power": 1234.5,
-            "phase_b_power": 1111.1,
-            "phase_c_power": 1111.1
-        }
-        """
+        """Lese Daten von SDM630 via Modbus"""
         try:
             from core.controllers.sdm630 import SDM630ModbusController
             
@@ -281,8 +252,11 @@ class EnergySourcesManager:
         grid_values = []
         battery_data = None
         
+        logger.info("Updating all energy sources...")
+        
         for source in self.sources.values():
             if not source.enabled:
+                logger.debug(f"Skipping disabled source: {source.id}")
                 continue
             
             try:
@@ -291,6 +265,12 @@ class EnergySourcesManager:
                 # Home Assistant
                 if source.provider == SourceProvider.HOME_ASSISTANT:
                     value = await self.read_home_assistant(source.config)
+                
+                # Shelly 3EM (Gen1)
+                elif source.provider == SourceProvider.SHELLY_3EM:
+                    data = await self.read_shelly_3em(source.config)
+                    if data:
+                        value = data['total_power']
                 
                 # Shelly
                 elif source.provider == SourceProvider.SHELLY:
@@ -325,12 +305,15 @@ class EnergySourcesManager:
                 # Wert speichern
                 if value is not None:
                     source.last_value = value
+                    logger.info(f"✓ {source.name}: {value}W")
                     
                     # Nach Typ sammeln
                     if source.type == SourceType.PV_GENERATION:
                         pv_values.append(value)
                     elif source.type == SourceType.GRID_POWER:
                         grid_values.append(value)
+                else:
+                    logger.warning(f"✗ {source.name}: No data received")
                         
             except Exception as e:
                 logger.error(f"Failed to update source {source.id}: {e}")
@@ -344,7 +327,6 @@ class EnergySourcesManager:
             self.current_data['battery_soc'] = battery_data['soc']
         
         # Hausverbrauch berechnen
-        # Verbrauch = PV + Grid + Battery (negativ wenn geladen)
         self.current_data['house_consumption'] = (
             self.current_data['pv_power'] +
             self.current_data['grid_power'] +
@@ -352,14 +334,13 @@ class EnergySourcesManager:
         )
         
         # Verfügbare Leistung
-        # Wenn Grid negativ (Einspeisung): Das ist verfügbar
         if self.current_data['grid_power'] < 0:
             self.current_data['available_power'] = abs(self.current_data['grid_power'])
         else:
             self.current_data['available_power'] = 0
         
         logger.info(
-            f"Energy: PV={self.current_data['pv_power']:.0f}W, "
+            f"==> PV={self.current_data['pv_power']:.0f}W, "
             f"Grid={self.current_data['grid_power']:.0f}W, "
             f"House={self.current_data['house_consumption']:.0f}W, "
             f"Available={self.current_data['available_power']:.0f}W"
@@ -377,37 +358,3 @@ class EnergySourcesManager:
         """Hole alle Quellen eines Typs"""
         return [s for s in self.sources.values() if s.type == source_type]
 
-
-if __name__ == "__main__":
-    # Test
-    logging.basicConfig(level=logging.DEBUG)
-    
-    manager = EnergySourcesManager()
-    
-    # Test: Home Assistant PV
-    ha_pv = EnergySource(
-        id="ha_pv",
-        name="PV from Home Assistant",
-        type=SourceType.PV_GENERATION,
-        provider=SourceProvider.HOME_ASSISTANT,
-        config={
-            "url": "http://homeassistant.local:8123",
-            "token": "your_token",
-            "entity_id": "sensor.pv_power"
-        }
-    )
-    manager.add_source(ha_pv)
-    
-    # Test: Shelly Pro 3EM Grid
-    shelly_grid = EnergySource(
-        id="shelly_grid",
-        name="Grid from Shelly Pro 3EM",
-        type=SourceType.GRID_POWER,
-        provider=SourceProvider.SHELLY_PRO_3EM,
-        config={
-            "ip": "10.0.0.151"
-        }
-    )
-    manager.add_source(shelly_grid)
-    
-    print(f"Added {len(manager.sources)} sources")

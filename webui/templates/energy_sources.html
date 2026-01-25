@@ -369,6 +369,7 @@
                     <select id="source-provider" onchange="updateConfigFields()">
                         <option value="home_assistant">Home Assistant</option>
                         <option value="shelly">Shelly</option>
+                        <option value="shelly_3em">Shelly 3EM</option>
                         <option value="shelly_pro_3em">Shelly Pro 3EM</option>
                         <option value="solax_modbus">Solax (Modbus)</option>
                         <option value="sdm630_modbus">SDM630 (Modbus)</option>
@@ -545,7 +546,8 @@
             } else if (type === 'grid_power') {
                 provider.innerHTML = `
                     <option value="home_assistant">Home Assistant</option>
-                    <option value="shelly_pro_3em">Shelly Pro 3EM</option>
+                    <option value="shelly_3em">Shelly 3EM</option>
+                        <option value="shelly_pro_3em">Shelly Pro 3EM</option>
                     <option value="sdm630_modbus">SDM630 (Modbus)</option>
                 `;
             } else if (type === 'battery') {
