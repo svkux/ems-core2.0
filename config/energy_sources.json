@@ -1,22 +1,20 @@
 {
   "sources": [
     {
-      "id": "battery_1769372155",
-      "name": "Growatt Batterie",
-      "type": "battery",
-      "provider": "home_assistant",
+      "id": "grid_power_1769422580",
+      "name": "Growatt",
+      "type": "grid_power",
+      "provider": "shelly_3em",
       "config": {
-        "url": "http://10.0.0.189:8123",
-        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJlNzU0NjFmYjNkNjg0NTA3YjBjNWQ4YzI3N2U3MmFmYyIsImlhdCI6MTc2OTI2Mjc4OSwiZXhwIjoyMDg0NjIyNzg5fQ.o1w2b0RrVK_pGHxXYm0tQB2tU5S9NrHH35UnOX6phDY",
-        "entity_id": "sensor.batterie_leistung_2"
+        "ip": "10.0.0.14"
       },
       "enabled": true,
-      "last_value": 0.0,
-      "last_update": "2026-01-25T20:40:27.984367"
+      "last_value": 1755.84,
+      "last_update": "2026-01-27T21:30:41.740922"
     },
     {
-      "id": "pv_generation_1769372187",
-      "name": "Growatt Wechselrichter",
+      "id": "pv_generation_1769422770",
+      "name": "Growatt",
       "type": "pv_generation",
       "provider": "home_assistant",
       "config": {
@@ -26,33 +24,22 @@
       },
       "enabled": true,
       "last_value": 0.0,
-      "last_update": "2026-01-25T20:40:27.991120"
+      "last_update": "2026-01-27T21:30:41.747681"
     },
     {
-      "id": "grid_power_1769373001",
-      "name": "Hauptz\u00e4hler",
-      "type": "grid_power",
-      "provider": "shelly_3em",
-      "config": {
-        "ip": "10.0.0.14"
-      },
-      "enabled": true,
-      "last_value": 446.82,
-      "last_update": "2026-01-25T20:40:28.036341"
-    },
-    {
-      "id": "battery_1769373623",
-      "name": "Growatt Batterie",
+      "id": "battery_1769423149",
+      "name": "Growatt",
       "type": "battery",
       "provider": "home_assistant",
       "config": {
         "url": "http://10.0.0.189:8123",
         "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJlNzU0NjFmYjNkNjg0NTA3YjBjNWQ4YzI3N2U3MmFmYyIsImlhdCI6MTc2OTI2Mjc4OSwiZXhwIjoyMDg0NjIyNzg5fQ.o1w2b0RrVK_pGHxXYm0tQB2tU5S9NrHH35UnOX6phDY",
-        "entity_id": "sensor.sensor.batterie_soc_2"
+        "entity_id": "sensor.batterie_leistung_2",
+        "entity_id_soc": "sensor.batterie_soc_2"
       },
       "enabled": true,
-      "last_value": 0.0,
-      "last_update": null
+      "last_value": 80.0,
+      "last_update": "2026-01-27T21:30:41.758743"
     }
   ]
 }

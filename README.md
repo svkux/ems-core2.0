@@ -1,466 +1,232 @@
-# EMS-Core v2.0 - Energie-Management-System
+# EMS-Core v2.0
 
-🔋 **Intelligentes, eigenständiges Energie-Management ohne Home Assistant**
+**Energy Management System** - Intelligente Steuerung von Haushaltsgeräten basierend auf PV-Erzeugung, Batterie und Netz.
 
-Optimiert PV-Eigenverbrauch durch priorisierte Verbraucher-Steuerung mit Zeitplänen, Batterie-Integration und SG-Ready Wärmepumpen-Steuerung.
+## 🚀 Features
 
----
+### ✅ Implementiert (Stand: 27.01.2026)
 
-## 📋 Inhaltsverzeichnis
+- **Energy Sources Management**
+  - PV-Erzeugung (Home Assistant, Solax Modbus)
+  - Netz-Messung (Shelly 3EM, SDM630)
+  - Batterie (Home Assistant, Solax Modbus) mit SOC Anzeige
+  - Auto-Refresh alle 5-60 Sekunden (konfigurierbar)
 
-- [Features](#-features)
-- [Architektur](#-architektur)
-- [Installation](#-installation)
-- [Konfiguration](#-konfiguration)
-- [Web UI](#-web-ui)
-- [API](#-api)
-- [Beispiele](#-beispiele)
-- [Troubleshooting](#-troubleshooting)
+- **Energy Flow Visualisierung**
+  - Live Sankey-Diagramm mit animierten Partikeln
+  - Eigenverbrauch, Autarkie-Grad, PV-Überschuss
+  - Battery SOC mit Progress Bar
 
----
+- **Device Control**
+  - Shelly Plug/1PM/Plus/Pro (Gen1 + Gen2)
+  - SG-Ready Wärmepumpen Steuerung (4 Modi)
+  - Ein/Aus/Toggle Steuerung
+  - Live Power Monitoring
 
-## ✨ Features
+- **Optimizer Loop**
+  - Prioritäts-basierte Steuerung (CRITICAL → OPTIONAL)
+  - PV-Überschuss Erkennung
+  - Battery SOC basierte Entscheidungen
+  - Hysterese gegen Flackern
+  - 30 Sekunden Cycle Intervall
 
-### Kern-Funktionen
-- ✅ **Automatische Geräte-Erkennung** (Shelly, Solax, SDM630)
-- ✅ **Intelligente Priorisierung** mit 5 Prioritätsstufen
-- ✅ **Zeitplan-Management** für automatische Steuerung
-- ✅ **Batterie-Integration** mit SOC-basierter Logik
-- ✅ **SG-Ready Steuerung** für Wärmepumpen (4 Modi)
-- ✅ **Web UI** mit Drag & Drop Priorisierung
-- ✅ **Echtzeit-Optimierung** alle 30 Sekunden
-- ✅ **Manuelle Überschreibung** pro Gerät
+- **Web UI**
+  - Device Management (CRUD)
+  - Energy Sources Configuration
+  - Live Dashboard mit aktuellen Werten
+  - Responsive Design
 
-### Unterstützte Geräte
-- **Shelly**: Plug, 1PM, Plus 1PM, Pro 1PM, Pro 3EM
-- **Solax**: X1/X3 Wechselrichter (Modbus TCP)
-- **SDM630**: Smartmeter (Modbus TCP)
-- **Allgemein**: Jedes Gerät mit HTTP/Modbus API
+- **Systemd Services**
+  - Auto-Start beim Boot
+  - Auto-Restart bei Fehler
+  - Logging via journald
 
----
+## 📋 System Requirements
 
-## 🏗️ Architektur
+- Ubuntu 20.04+ oder Debian 11+
+- Python 3.8+
+- 512 MB RAM minimum
+- Netzwerk-Zugriff zu:
+  - Home Assistant (optional)
+  - Shelly Devices
+  - Solax Inverter (optional)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        EMS-Core v2.0                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
-│  │   Discovery  │  │  Controller  │  │   Optimizer  │     │
-│  │  (Netzwerk)  │  │   (Geräte)   │  │  (Logik)     │     │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
-│         │                  │                  │             │
-│         └──────────────────┴──────────────────┘             │
-│                            │                                │
-│                    ┌───────▼────────┐                       │
-│                    │   Main Loop    │                       │
-│                    │  (30s Cycle)   │                       │
-│                    └───────┬────────┘                       │
-│                            │                                │
-│         ┌──────────────────┼──────────────────┐             │
-│         │                  │                  │             │
-│    ┌────▼─────┐     ┌──────▼──────┐    ┌─────▼────┐        │
-│    │Scheduler │     │ Prioritizer │    │SG-Ready  │        │
-│    │(Zeit)    │     │(Prio-Logik) │    │(WP)      │        │
-│    └──────────┘     └─────────────┘    └──────────┘        │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│                        Web UI (8080)                        │
-│  Discovery | Config | Priorities | Schedules | Manual      │
-└─────────────────────────────────────────────────────────────┘
-```
+## 🔧 Installation
 
----
+Siehe [INSTALLATION.md](INSTALLATION.md) für detaillierte Anleitung.
 
-## 🚀 Installation
-
-### Voraussetzungen
-- Python 3.9+
-- LXC Container oder Linux Server
-- Netzwerk-Zugriff zu Geräten
-
-### Automatische Installation
+**Quick Start:**
 
 ```bash
-# Repository klonen
+# 1. Clone Repository
 git clone https://github.com/svkux/ems-core2.0.git
 cd ems-core2.0
 
-# Installation ausführen
-chmod +x install_ems_complete.sh
-sudo ./install_ems_complete.sh
-```
-
-### Manuelle Installation
-
-```bash
-# Virtuelle Umgebung erstellen
+# 2. Setup Virtual Environment
 python3 -m venv venv
 source venv/bin/activate
-
-# Dependencies installieren
 pip install -r requirements.txt
 
-# Konfiguration erstellen
-mkdir -p config logs
-cp config/settings.yaml.example config/settings.yaml
-cp config/devices.yaml.example config/devices.yaml
+# 3. Deploy Services
+sudo ./deploy_services.sh
 
-# Systemd Service einrichten
-sudo cp ems-core.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable ems-core
-sudo systemctl start ems-core
+# 4. Open Web UI
+# http://YOUR-IP:8080
 ```
 
----
+## 📁 Projekt-Struktur
 
-## ⚙️ Konfiguration
-
-### 1. System-Einstellungen (`config/settings.yaml`)
-
-```yaml
-optimization_interval: 30  # Sekunden
-hysteresis: 100  # Watt Hysterese
-
-battery:
-  min_soc: 20
-  max_soc: 95
-  priority_soc: 50  # Ab diesem SOC Verbraucher priorisieren
-
-solax:
-  ip: "10.0.0.100"
-  port: 502
-
-sg_ready:
-  enabled: true
-  relay1_id: "shelly_sg_relay1"
-  relay2_id: "shelly_sg_relay2"
 ```
-
-### 2. Geräte-Konfiguration (`config/devices.yaml`)
-
-```yaml
-devices:
-  - id: "heater"
-    name: "Heizstab"
-    type: "shelly_1pm"
-    ip: "10.0.0.151"
-    power: 3000
-    priority: "MEDIUM"
-    can_control: true
-    min_runtime: 30  # Minuten
+/opt/ems-core/
+├── core/
+│   ├── main.py                    # Optimizer Loop
+│   ├── device_manager.py          # Device CRUD
+│   ├── energy_sources.py          # Energy Data Management
+│   ├── controllers/
+│   │   ├── shelly.py              # Shelly Controller
+│   │   └── sg_ready.py            # SG-Ready Controller
+│   └── optimizer/
+│       └── scheduler.py           # TODO: Zeitplan-Management
+├── webui/
+│   ├── app.py                     # Flask App
+│   ├── api_routes.py              # Device API
+│   ├── api_energy.py              # Energy API
+│   └── templates/
+│       ├── index.html             # Landing
+│       ├── devices.html           # Device Management
+│       └── energy_sources.html    # Energy Dashboard + Flow
+├── config/
+│   ├── devices.yaml               # Device Definitions
+│   └── energy_sources.json        # Energy Sources Config
+└── logs/
+    └── ems.log                    # Application Logs
 ```
-
-### 3. Prioritäts-Stufen
-
-| Priorität | Beschreibung | Beispiel |
-|-----------|--------------|----------|
-| `CRITICAL` | Immer an | Kühlschrank, Server |
-| `HIGH` | Hohe Priorität | Wärmepumpe |
-| `MEDIUM` | Mittlere Priorität | Heizstab |
-| `LOW` | Niedrige Priorität | Waschmaschine |
-| `OPTIONAL` | Nur bei Überschuss | E-Auto Wallbox |
-
-### 4. Zeitpläne (`config/schedules.json`)
-
-```json
-{
-  "heater": {
-    "device_id": "heater",
-    "enabled": true,
-    "schedule": {
-      "monday": [[10, 14], [20, 22]],
-      "tuesday": [[10, 14]]
-    }
-  }
-}
-```
-
-**Format:** `[[start_hour, end_hour], ...]`
-
----
 
 ## 🌐 Web UI
 
-URL: **http://YOUR_IP:8080**
+**URL:** `http://YOUR-IP:8080`
 
-### Tabs
+### Seiten:
 
-#### 1. **Discovery**
-- Automatisches Scannen nach Geräten
-- Anzeige gefundener Shelly, Solax, SDM630
-- Hinzufügen zur Konfiguration
+1. **Dashboard** (`/`) - Übersicht (TODO)
+2. **Devices** (`/devices`) - Geräte-Verwaltung
+3. **Energy Sources** (`/energy_sources`) - Energie-Dashboard
+   - Tab 1: Übersicht (Value Cards)
+   - Tab 2: Energie-Fluss (Sankey Visualisierung)
+   - Tab 3: Quellen (Configuration)
 
-#### 2. **Config**
-- System-Einstellungen bearbeiten
-- Batterie-Parameter anpassen
-- SG-Ready konfigurieren
+## 🔌 API Endpoints
 
-#### 3. **Priorities**
-- **Drag & Drop** Priorisierung
-- Reihenfolge definiert Schaltung bei gleicher Priorität
-- Live-Vorschau der Leistungsverteilung
+Siehe [API_DOCUMENTATION.md](API_DOCUMENTATION.md) für Details.
 
-#### 4. **Schedules**
-- Zeitpläne erstellen/bearbeiten
-- Wochentags-basierte Steuerung
-- Aktivierung/Deaktivierung pro Gerät
+**Energy API:**
+- `GET /api/energy/sources` - Liste aller Quellen
+- `POST /api/energy/sources` - Quelle hinzufügen
+- `GET /api/energy/current` - Aktuelle Werte
+- `POST /api/energy/refresh` - Manuelle Aktualisierung
 
-#### 5. **Manual**
-- Manuelle Geräte-Steuerung
-- Überschreibt automatische Optimierung
-- Status-Anzeige aller Geräte
+**Device API:**
+- `GET /api/devices` - Liste aller Geräte
+- `POST /api/devices/<id>/control` - Gerät steuern (on/off)
+- `GET /api/devices/<id>/status` - Live Status
+- `GET /api/devices/<id>/power` - Aktueller Verbrauch
 
----
+## 🎯 Optimizer Strategie
 
-## 📊 Optimierungs-Logik
+Der Optimizer entscheidet basierend auf:
 
-### Energie-Berechnung
+1. **Verfügbare Power** = PV-Überschuss - Hysterese
+2. **Battery SOC** (Bonus bei >90%, Penalty bei <20%)
+3. **Device Priorität:**
+   - **CRITICAL**: Immer AN
+   - **HIGH**: AN bei ausreichend PV/Battery
+   - **MEDIUM**: AN bei gutem Überschuss
+   - **LOW/OPTIONAL**: Nur bei deutlichem Überschuss
 
-```python
-# Verfügbare Leistung berechnen
-available_power = PV - Hausverbrauch - Batterieladung
-
-# Wenn Batterie > priority_soc (50%):
-if battery_soc >= 50:
-    available_power = |Netz-Einspeisung| - Hysterese
-
-# Wenn Batterie fast voll (>90%):
-if battery_soc >= 90:
-    available_power = max(available_power, |Netz-Einspeisung|)
-```
-
-### Schaltungs-Algorithmus
-
-1. **Phase 1: CRITICAL Geräte** (immer an)
-2. **Phase 2: SCHEDULED Geräte** (wenn im Zeitplan)
-3. **Phase 3: Priorisierte Geräte** (nach Reihenfolge)
-   - Sortierung: Priority → User-Order
-   - Respektiert Mindestlaufzeit
-   - Berücksichtigt Hysterese
-
-### SG-Ready Modi
-
-| Modus | Bedingung | Beschreibung |
-|-------|-----------|--------------|
-| `LOCKED` | SOC < 20% | Sperre (Batterie leer) |
-| `NORMAL` | Default | Normalbetrieb |
-| `COMFORT` | Überschuss > 2kW | Erhöhter Komfort |
-| `FORCED` | Überschuss > 5kW & SOC > 80% | Zwangsbetrieb |
-
----
-
-## 🔧 API
-
-### REST Endpoints
+## 📊 Logging & Monitoring
 
 ```bash
-# System Status
-GET /api/status
+# Optimizer Logs (Live)
+sudo journalctl -u ems-optimizer -f
 
-# Geräte-Liste
-GET /api/devices
+# WebUI Logs (Live)
+sudo journalctl -u ems-webui -f
 
-# Gerät schalten
-POST /api/device/{device_id}/switch
-{
-  "state": true,  # true=ON, false=OFF
-  "manual": true  # Optional: Manuelle Überschreibung
-}
+# Beide zusammen
+sudo journalctl -u ems-optimizer -u ems-webui -f
 
-# Zeitplan setzen
-POST /api/schedule/{device_id}
-{
-  "schedule": {
-    "monday": [[10, 14]]
-  },
-  "enabled": true
-}
-
-# Priorität ändern
-POST /api/priority
-{
-  "order": ["device1", "device2", "device3"]
-}
+# Logs der letzten Stunde
+sudo journalctl -u ems-optimizer --since "1 hour ago"
 ```
 
----
+## 🛠️ Troubleshooting
 
-## 📝 Beispiele
+Siehe [TROUBLESHOOTING.md](TROUBLESHOOTING.md) für häufige Probleme.
 
-### Beispiel 1: Sonniger Tag (8kW PV)
+**Häufige Probleme:**
 
-```
-Zeit: 12:00 Uhr, Montag
-PV: 8000W
-Batterie: 85% (lädt leicht)
-Netz: -2000W (Einspeisung)
+1. **Battery SOC zeigt 0%**
+   - Prüfe `entity_id_soc` in Config
+   - Siehe Troubleshooting Guide
 
-→ Verfügbar: ~2000W
+2. **Devices werden nicht gesteuert**
+   - Prüfe IP-Adressen
+   - Teste Netzwerk-Erreichbarkeit
 
-Schaltung:
-✓ Kühlschrank (150W) - CRITICAL
-✓ Wärmepumpe (2000W) - HIGH, im Zeitplan
-✗ Heizstab (3000W) - MEDIUM (nicht genug Leistung)
-✗ Waschmaschine (2000W) - LOW
-```
+3. **WebUI startet nicht**
+   - Check Logs: `sudo journalctl -u ems-webui -n 50`
+   - Port 8080 bereits belegt?
 
-### Beispiel 2: Bewölkt (2kW PV)
+## 🚧 Roadmap
 
-```
-Zeit: 14:00 Uhr
-PV: 2000W
-Batterie: 45% (entlädt)
-Netz: 500W (Bezug)
+### Nächste Features (Priorität)
 
-→ Verfügbar: 0W (Batterie hat Priorität)
+1. **Dashboard** - Zentrale Übersichtsseite
+2. **Historische Daten** - Charts für PV/Grid/Battery
+3. **Zeitpläne** - "Gerät nur 10-14 Uhr"
+4. **Benachrichtigungen** - Email/Push bei Events
+5. **Wetter-Integration** - PV-Prognose
+6. **Statistiken** - Eigenverbrauch, Autarkie pro Tag/Woche
 
-Schaltung:
-✓ Kühlschrank (150W) - CRITICAL
-✗ Alle anderen Geräte
-```
+### Langfristig
 
-### Beispiel 3: Hoher Überschuss (12kW PV)
+- Machine Learning für Verbrauchsprognose
+- Strompreis-Integration (dynamische Tarife)
+- Mobile App (PWA)
+- MQTT Support
+- Multi-User System
 
-```
-Zeit: 13:00 Uhr
-PV: 12000W
-Batterie: 95% (voll)
-Netz: -5000W (Einspeisung)
+## 📝 Changelog
 
-→ Verfügbar: ~5000W
+Siehe [CHANGELOG.md](CHANGELOG.md) für vollständige Version History.
 
-Schaltung:
-✓ Kühlschrank (150W)
-✓ Wärmepumpe (2000W) - SG-Ready: FORCED
-✓ Heizstab (3000W)
-✓ Waschmaschine (2000W)
-→ Gesamt: 7150W (System schaltet intelligent)
-```
+**v2.0.0 (27.01.2026)**
+- Initial Release
+- Energy Sources Management
+- Device Control (Shelly + SG-Ready)
+- Optimizer Loop
+- Energy Flow Visualisierung
 
----
+## 🤝 Contributing
 
-## 🐛 Troubleshooting
+1. Fork das Repository
+2. Erstelle einen Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit deine Changes (`git commit -m 'Add AmazingFeature'`)
+4. Push zum Branch (`git push origin feature/AmazingFeature`)
+5. Öffne einen Pull Request
 
-### Gerät wird nicht erkannt
+## 📄 License
 
-```bash
-# Prüfe Netzwerk-Erreichbarkeit
-ping 10.0.0.150
+MIT License - siehe LICENSE Datei
 
-# Prüfe Shelly API
-curl http://10.0.0.150/status
+## 👤 Author
 
-# Logs prüfen
-sudo journalctl -u ems-core -f
-```
+**svkux**
+- GitHub: [@svkux](https://github.com/svkux)
 
-### Optimierung läuft nicht
+## 🙏 Acknowledgments
 
-```bash
-# Service Status
-sudo systemctl status ems-core
-
-# Neustart
-sudo systemctl restart ems-core
-
-# Config validieren
-python3 -c "import yaml; yaml.safe_load(open('config/settings.yaml'))"
-```
-
-### Batterie-Priorität funktioniert nicht
-
-- Prüfe `battery.priority_soc` in `settings.yaml`
-- Stelle sicher dass Solax-Daten korrekt gelesen werden
-- Logs prüfen: `grep "Battery" /var/log/ems-core.log`
-
-### SG-Ready schaltet nicht
-
-```bash
-# Prüfe Relais-Status
-curl http://RELAY1_IP/status
-curl http://RELAY2_IP/status
-
-# Prüfe Konfiguration
-grep -A5 "sg_ready" config/settings.yaml
-```
-
----
-
-## 🧪 Tests
-
-### System-Test ausführen
-
-```bash
-source venv/bin/activate
-python3 test_ems_system.py
-```
-
-**Erwartete Ausgabe:**
-```
-✓ PASS - Scheduler Basic
-✓ PASS - Scheduler Time Windows
-✓ PASS - Prioritizer Basic
-...
-✓ ALL TESTS PASSED!
-```
-
----
-
-## 📈 Monitoring
-
-### Logs
-
-```bash
-# Live Logs
-sudo journalctl -u ems-core -f
-
-# Fehler-Logs
-sudo journalctl -u ems-core -p err
-
-# Letzte 100 Zeilen
-sudo journalctl -u ems-core -n 100
-```
-
-### Statistiken
-
-Die Web UI zeigt:
-- Gesamt-Optimierungen
-- Geschaltete Geräte
-- Aktuelle Energie-Daten
-- Letzte Optimierung
-
----
-
-## 🔄 Updates
-
-```bash
-cd /opt/ems-core
-git pull
-sudo systemctl restart ems-core
-```
-
----
-
-## 📞 Support
-
-- **GitHub Issues**: https://github.com/svkux/ems-core2.0/issues
-- **Dokumentation**: Siehe `docs/` Ordner
-
----
-
-## 📄 Lizenz
-
-MIT License - Siehe LICENSE Datei
-
----
-
-## 🙏 Credits
-
-Entwickelt für maximale PV-Eigenverbrauch-Optimierung mit Shelly-Geräten, Solax-Wechselrichtern und SG-Ready Wärmepumpen.
-
-**Version:** 2.0  
-**Autor:** EMS-Core Team  
-**Datum:** Januar 2025
+- Built with [Flask](https://flask.palletsprojects.com/)
+- UI inspired by modern energy management systems
+- Shelly API integration
+- Home Assistant integration

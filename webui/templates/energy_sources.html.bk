@@ -199,6 +199,13 @@
             color: #6b7280;
         }
         
+        .value-card .soc-display {
+            font-size: 18px;
+            margin-top: 10px;
+            color: #059669;
+            font-weight: 600;
+        }
+        
         .modal {
             display: none;
             position: fixed;
@@ -262,6 +269,73 @@
             opacity: 0.6;
             pointer-events: none;
         }
+
+        .info-hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        /* Auto-Refresh Controls */
+        .refresh-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .refresh-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .refresh-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+        }
+
+        .refresh-indicator.updating {
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .interval-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .interval-selector label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1f2937;
+        }
+
+        .interval-selector select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .last-update {
+            margin-left: auto;
+            font-size: 13px;
+            color: #6b7280;
+        }
     </style>
 </head>
 <body>
@@ -279,6 +353,28 @@
         <!-- Tab: Übersicht -->
         <div class="tab-content active" id="tab-overview">
             <h2 style="margin-bottom: 20px;">Aktuelle Werte</h2>
+            
+            <!-- Auto-Refresh Controls -->
+            <div class="refresh-controls">
+                <div class="refresh-status">
+                    <div class="refresh-indicator" id="refresh-indicator"></div>
+                    <span id="refresh-status-text">Auto-Refresh aktiv</span>
+                </div>
+                
+                <div class="interval-selector">
+                    <label>Update-Intervall:</label>
+                    <select id="refresh-interval" onchange="changeRefreshInterval()">
+                        <option value="5000">5 Sekunden</option>
+                        <option value="10000" selected>10 Sekunden</option>
+                        <option value="30000">30 Sekunden</option>
+                        <option value="60000">60 Sekunden</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-primary" onclick="manualRefresh()" id="refresh-btn">🔄 Jetzt aktualisieren</button>
+                
+                <div class="last-update" id="last-update">Noch nicht aktualisiert</div>
+            </div>
             
             <div class="current-values" id="values-container">
                 <div class="value-card">
@@ -300,9 +396,9 @@
                     <div>
                         <span class="value" id="val-battery">0</span>
                         <span class="unit">W</span>
-                        <div style="font-size: 14px; margin-top: 5px; color: #6b7280;">
-                            SOC: <span id="val-battery-soc">0</span>%
-                        </div>
+                    </div>
+                    <div class="soc-display">
+                        🔋 SOC: <span id="val-battery-soc">0</span>%
                     </div>
                 </div>
                 <div class="value-card">
@@ -320,8 +416,6 @@
                     </div>
                 </div>
             </div>
-            
-            <button class="btn btn-primary" onclick="manualRefresh()" id="refresh-btn">🔄 Aktualisieren</button>
         </div>
         
         <!-- Tab: Quellen -->
@@ -331,19 +425,26 @@
                 <button class="btn btn-primary" onclick="openAddSourceModal()">➕ Quelle hinzufügen</button>
             </div>
             
-            <!-- PV Generation -->
+            <!-- Auto-Refresh Controls für Sources Tab -->
+            <div class="refresh-controls">
+                <div class="refresh-status">
+                    <div class="refresh-indicator" id="refresh-indicator-sources"></div>
+                    <span id="refresh-status-text-sources">Auto-Refresh aktiv</span>
+                </div>
+                
+                <div class="last-update" id="last-update-sources">Noch nicht aktualisiert</div>
+            </div>
+            
             <div class="source-type-section">
                 <h3>☀️ PV Erzeugung</h3>
                 <div id="sources-pv"></div>
             </div>
             
-            <!-- Grid Power -->
             <div class="source-type-section">
                 <h3>⚡ Netz-Messung</h3>
                 <div id="sources-grid"></div>
             </div>
             
-            <!-- Battery -->
             <div class="source-type-section">
                 <h3>🔋 Batterie</h3>
                 <div id="sources-battery"></div>
@@ -371,11 +472,6 @@
                     <label>Provider *</label>
                     <select id="source-provider" onchange="updateConfigFields()">
                         <option value="home_assistant">Home Assistant</option>
-                        <option value="shelly">Shelly</option>
-                        <option value="shelly_3em">Shelly 3EM</option>
-                        <option value="shelly_pro_3em">Shelly Pro 3EM</option>
-                        <option value="solax_modbus">Solax (Modbus)</option>
-                        <option value="sdm630_modbus">SDM630 (Modbus)</option>
                     </select>
                 </div>
                 
@@ -384,7 +480,6 @@
                     <input type="text" id="source-name" placeholder="z.B. PV from Solax">
                 </div>
                 
-                <!-- Config Fields (dynamisch) -->
                 <div id="config-fields"></div>
             </div>
             <div class="modal-footer">
@@ -397,6 +492,8 @@
     <script>
         let sources = [];
         let autoRefreshInterval;
+        let currentRefreshIntervalMs = 10000; // Default: 10 Sekunden
+        let lastUpdateTime = null;
         
         function switchTab(tab) {
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -405,11 +502,8 @@
             event.target.classList.add('active');
             document.getElementById('tab-' + tab).classList.add('active');
             
-            if (tab === 'overview') {
-                startAutoRefresh();
-            } else {
-                stopAutoRefresh();
-            }
+            // Auto-Refresh starten für beide Tabs
+            startAutoRefresh();
         }
         
         async function loadSources() {
@@ -418,6 +512,7 @@
                 const data = await res.json();
                 sources = data.sources || [];
                 renderSources();
+                updateLastUpdateTime('sources');
             } catch (err) {
                 console.error('Failed to load sources:', err);
             }
@@ -448,13 +543,22 @@
         function createSourceCard(source) {
             const card = document.createElement('div');
             card.className = 'source-card' + (source.enabled ? ' enabled' : '');
+            
+            // Formatiere last_update Zeit
+            let lastUpdateText = 'Nie';
+            if (source.last_update) {
+                const updateTime = new Date(source.last_update);
+                lastUpdateText = updateTime.toLocaleTimeString('de-DE');
+            }
+            
             card.innerHTML = `
                 <div class="source-info">
                     <h4>${source.name}</h4>
                     <p>${source.provider} • ${source.config.ip || source.config.entity_id || 'Config'}</p>
+                    <p style="font-size: 12px; color: #9ca3af; margin-top: 4px;">Zuletzt: ${lastUpdateText}</p>
                 </div>
                 <div class="source-actions">
-                    <span class="source-value">${Math.round(source.last_value || 0)}W</span>
+                    <span class="source-value">${Math.round(source.last_value || 0)}${source.type === 'battery' ? '%' : 'W'}</span>
                     <label class="toggle-switch">
                         <input type="checkbox" ${source.enabled ? 'checked' : ''} 
                                onchange="toggleSource('${source.id}', this.checked)">
@@ -469,41 +573,44 @@
         async function manualRefresh() {
             const btn = document.getElementById('refresh-btn');
             const container = document.getElementById('values-container');
+            const indicator = document.getElementById('refresh-indicator');
             
             btn.disabled = true;
             btn.textContent = '⏳ Lädt...';
             container.classList.add('loading');
+            indicator.classList.add('updating');
             
             try {
-                console.log('Calling /api/energy/refresh...');
-                const refreshRes = await fetch('/api/energy/refresh', {
-                    method: 'POST'
-                });
-                const refreshData = await refreshRes.json();
-                console.log('Refresh response:', refreshData);
-                
-                if (refreshData.success) {
-                    await updateValues();
-                } else {
-                    console.error('Refresh failed:', refreshData.error);
-                    alert('Fehler beim Aktualisieren: ' + refreshData.error);
-                }
+                // updateValues() triggert jetzt selbst das Backend
+                await updateValues(true);
+                await loadSources(); // Auch Sources neu laden
             } catch (err) {
-                console.error('Refresh error:', err);
-                alert('Fehler beim Aktualisieren: ' + err.message);
+                alert('Fehler: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.textContent = '🔄 Aktualisieren';
+                btn.textContent = '🔄 Jetzt aktualisieren';
                 container.classList.remove('loading');
+                indicator.classList.remove('updating');
             }
         }
         
-        async function updateValues() {
+        async function updateValues(triggerBackend = true) {
+            const indicator = document.getElementById('refresh-indicator');
+            const indicatorSources = document.getElementById('refresh-indicator-sources');
+            
+            // Zeige Update-Animation
+            indicator.classList.add('updating');
+            indicatorSources.classList.add('updating');
+            
             try {
+                // WICHTIG: Erst Backend triggern um neue Daten zu holen
+                if (triggerBackend) {
+                    await fetch('/api/energy/refresh', { method: 'POST' });
+                }
+                
+                // Dann aktuelle Werte abrufen
                 const res = await fetch('/api/energy/current');
                 const data = await res.json();
-                
-                console.log('Current values:', data);
                 
                 document.getElementById('val-pv').textContent = Math.round(data.pv_power || 0);
                 document.getElementById('val-grid').textContent = Math.round(data.grid_power || 0);
@@ -511,15 +618,54 @@
                 document.getElementById('val-battery-soc').textContent = Math.round(data.battery_soc || 0);
                 document.getElementById('val-house').textContent = Math.round(data.house_consumption || 0);
                 document.getElementById('val-available').textContent = Math.round(data.available_power || 0);
+                
+                updateLastUpdateTime('overview');
             } catch (err) {
-                console.error('Update values failed:', err);
+                console.error('Update failed:', err);
+            } finally {
+                // Entferne Animation nach 500ms
+                setTimeout(() => {
+                    indicator.classList.remove('updating');
+                    indicatorSources.classList.remove('updating');
+                }, 500);
             }
+        }
+        
+        function updateLastUpdateTime(tab) {
+            lastUpdateTime = new Date();
+            const timeStr = lastUpdateTime.toLocaleTimeString('de-DE');
+            
+            if (tab === 'overview') {
+                document.getElementById('last-update').textContent = `Zuletzt aktualisiert: ${timeStr}`;
+            } else if (tab === 'sources') {
+                document.getElementById('last-update-sources').textContent = `Zuletzt aktualisiert: ${timeStr}`;
+            }
+        }
+        
+        function changeRefreshInterval() {
+            const select = document.getElementById('refresh-interval');
+            currentRefreshIntervalMs = parseInt(select.value);
+            
+            // Restart auto-refresh mit neuem Intervall
+            startAutoRefresh();
+            
+            console.log(`Refresh interval changed to ${currentRefreshIntervalMs}ms`);
         }
         
         function startAutoRefresh() {
             stopAutoRefresh();
-            updateValues();
-            autoRefreshInterval = setInterval(updateValues, 10000); // Alle 10s
+            
+            // Erste Aktualisierung sofort (mit Backend-Trigger)
+            updateValues(true);
+            loadSources();
+            
+            // Dann im gewählten Intervall (mit Backend-Trigger)
+            autoRefreshInterval = setInterval(() => {
+                updateValues(true);  // ← Jetzt mit Backend-Trigger!
+                loadSources(); // Auch Sources regelmäßig neu laden
+            }, currentRefreshIntervalMs);
+            
+            console.log(`Auto-refresh started with ${currentRefreshIntervalMs}ms interval`);
         }
         
         function stopAutoRefresh() {
@@ -542,29 +688,18 @@
             const provider = document.getElementById('source-provider');
             
             if (type === 'pv_generation') {
-                provider.innerHTML = `
-                    <option value="home_assistant">Home Assistant</option>
-                    <option value="shelly">Shelly</option>
-                    <option value="solax_modbus">Solax (Modbus)</option>
-                `;
+                provider.innerHTML = '<option value="home_assistant">Home Assistant</option><option value="solax_modbus">Solax (Modbus)</option>';
             } else if (type === 'grid_power') {
-                provider.innerHTML = `
-                    <option value="home_assistant">Home Assistant</option>
-                    <option value="shelly_3em">Shelly 3EM</option>
-                    <option value="shelly_pro_3em">Shelly Pro 3EM</option>
-                    <option value="sdm630_modbus">SDM630 (Modbus)</option>
-                `;
+                provider.innerHTML = '<option value="home_assistant">Home Assistant</option><option value="shelly_3em">Shelly 3EM</option><option value="shelly_pro_3em">Shelly Pro 3EM</option><option value="sdm630_modbus">SDM630 (Modbus)</option>';
             } else if (type === 'battery') {
-                provider.innerHTML = `
-                    <option value="solax_modbus">Solax (Modbus)</option>
-                    <option value="home_assistant">Home Assistant</option>
-                `;
+                provider.innerHTML = '<option value="home_assistant">Home Assistant</option><option value="solax_modbus">Solax (Modbus)</option>';
             }
             
             updateConfigFields();
         }
         
         function updateConfigFields() {
+            const type = document.getElementById('source-type').value;
             const provider = document.getElementById('source-provider').value;
             const container = document.getElementById('config-fields');
             
@@ -574,17 +709,37 @@
                 html = `
                     <div class="form-group">
                         <label>Home Assistant URL</label>
-                        <input type="text" id="config-url" placeholder="http://homeassistant.local:8123">
+                        <input type="text" id="config-url" placeholder="http://10.0.0.189:8123">
                     </div>
                     <div class="form-group">
                         <label>Access Token</label>
                         <input type="text" id="config-token" placeholder="Long-lived access token">
                     </div>
-                    <div class="form-group">
-                        <label>Entity ID</label>
-                        <input type="text" id="config-entity" placeholder="sensor.pv_power">
-                    </div>
                 `;
+                
+                // Unterschiedliche Felder für Battery vs. andere
+                if (type === 'battery') {
+                    html += `
+                        <div class="form-group">
+                            <label>Entity ID (Battery Power)</label>
+                            <input type="text" id="config-entity" placeholder="sensor.battery_power">
+                            <div class="info-hint">Entity für Battery Power in Watt (positiv = Laden, negativ = Entladen)</div>
+                        </div>
+                        <div class="form-group">
+                            <label>Entity ID (Battery SOC)</label>
+                            <input type="text" id="config-entity-soc" placeholder="sensor.battery_soc">
+                            <div class="info-hint">Entity für Battery State of Charge in % (0-100)</div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="form-group">
+                            <label>Entity ID</label>
+                            <input type="text" id="config-entity" placeholder="sensor.pv_power">
+                        </div>
+                    `;
+                }
+                
             } else if (provider === 'shelly' || provider === 'shelly_3em' || provider === 'shelly_pro_3em') {
                 html = `
                     <div class="form-group">
@@ -613,6 +768,7 @@
         }
         
         async function saveSource() {
+            const type = document.getElementById('source-type').value;
             const provider = document.getElementById('source-provider').value;
             let config = {};
             
@@ -622,10 +778,17 @@
                     token: document.getElementById('config-token').value,
                     entity_id: document.getElementById('config-entity').value
                 };
+                
+                // Für Battery: zweite Entity ID für SOC hinzufügen
+                if (type === 'battery') {
+                    const socEntityField = document.getElementById('config-entity-soc');
+                    if (socEntityField && socEntityField.value) {
+                        config.entity_id_soc = socEntityField.value;
+                    }
+                }
+                
             } else if (provider === 'shelly' || provider === 'shelly_3em' || provider === 'shelly_pro_3em') {
-                config = {
-                    ip: document.getElementById('config-ip').value
-                };
+                config = { ip: document.getElementById('config-ip').value };
             } else if (provider === 'solax_modbus' || provider === 'sdm630_modbus') {
                 config = {
                     ip: document.getElementById('config-ip').value,
@@ -636,7 +799,7 @@
             
             const sourceData = {
                 name: document.getElementById('source-name').value,
-                type: document.getElementById('source-type').value,
+                type: type,
                 provider: provider,
                 config: config,
                 enabled: true
@@ -668,7 +831,6 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({enabled})
                 });
-                
                 await loadSources();
             } catch (err) {
                 console.error('Toggle failed:', err);
@@ -686,10 +848,10 @@
             }
         }
         
-        // Init
+        // Starte Auto-Refresh beim Laden der Seite
         loadSources();
         startAutoRefresh();
     </script>
+	
 </body>
 </html>
-

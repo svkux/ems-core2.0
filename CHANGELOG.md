@@ -1,194 +1,199 @@
 # Changelog
 
-All notable changes to EMS-Core will be documented in this file.
+Alle wichtigen Änderungen an EMS-Core werden hier dokumentiert.
 
-## [2.0.0] - 2025-01-19
+Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
-### 🎉 Major Release - Complete Rewrite
+## [2.0.0] - 2026-01-27
 
-#### Added
+### 🎉 Initial Release - Vollständiges EMS-Core v2.0
 
-**Core Features**
-- ✨ **DeviceManager** - Zentrale Geräte-Verwaltung mit YAML/JSON Persistierung
-- ✨ **Scheduler Module** - Wochentags-basierte Zeitplan-Verwaltung
-- ✨ **Prioritizer Module** - Intelligente 5-Stufen Priorisierung (CRITICAL → OPTIONAL)
-- ✨ **Main Optimizer** - Haupt-Event-Loop mit 30s Optimierungs-Zyklus
-- ✨ **Device Mapping** - IP-basiertes Device-Mapping System
+### Added
 
-**Web UI**
-- ✨ **Device Management UI** - Vollständige CRUD-Oberfläche für Geräte
-  - Add/Edit/Delete Geräte via Modal
-  - Suche und Filter-Funktionen
-  - Live-Statistiken Dashboard
-  - Responsive Design
-- ✨ **REST API** - Vollständige RESTful API (`/api/devices/*`)
-  - CRUD Endpoints
-  - Discovery Integration
-  - Statistics Endpoints
-  - Device Control
+#### Energy Management
+- **Energy Sources Manager** (`core/energy_sources.py`)
+  - Support für PV, Grid, Battery Sources
+  - Provider: Home Assistant, Shelly 3EM, Solax Modbus, SDM630
+  - Battery SOC Monitoring und Anzeige
+  - Auto-Update Mechanismus
+  - Hausverbrauch-Berechnung: `House = PV - Battery + Grid`
+  
+- **Energy Flow Visualisierung**
+  - Live Sankey-Diagramm mit animierten Partikeln
+  - Dynamische Farbcodierung (PV=Grün, Battery=Blau, Grid=Rot/Grün)
+  - Summary Cards: Eigenverbrauch, Autarkie-Grad, PV-Überschuss
+  - Battery SOC Progress Bar
+  - Integriert als Tab in Energy Sources Page
 
-**Controllers**
-- ✨ **ShellyController** - Unterstützung für Gen1, Gen2, Plus, Pro
-- ✨ **SolaxModbusController** - PV + Battery Integration
-- ✨ **SDM630ModbusController** - Smartmeter Integration
-- ✨ **SGReadyController** - 4-Modi Wärmepumpen-Steuerung
-- ✨ **ShellyProEM3Controller** - 3-Phasen Energie-Messung
+#### Device Control
+- **Shelly Controller** (`core/controllers/shelly.py`)
+  - Vollständiger Support für Gen1 (Plug, 1PM, 2.5, 3EM)
+  - Vollständiger Support für Gen2 (Plus, Pro)
+  - Funktionen: turn_on, turn_off, toggle, get_status, get_power
+  - Async + Sync Wrapper für Flask Integration
+  
+- **SG-Ready Controller** (`core/controllers/sg_ready.py`)
+  - 4 Betriebsmodi: OFF, NORMAL, RECOMMENDED, FORCED
+  - 2-Relais Steuerung für SG-Ready Eingänge
+  - PV-Überschuss Mode für Wärmepumpen
 
-**Configuration**
-- ✨ Neue Config-Struktur mit YAML/JSON
-  - `settings.yaml` - System-Konfiguration
-  - `devices.yaml` - Geräte-Definitionen
-  - `schedules.json` - Zeitpläne
-  - `priorities.json` - User-definierte Reihenfolge
-  - `device_mapping.json` - IP-Mapping
+#### Optimizer
+- **Main Optimizer Loop** (`core/main.py`)
+  - Prioritäts-basierte Device Steuerung
+  - 5 Prioritäts-Level: CRITICAL, HIGH, MEDIUM, LOW, OPTIONAL
+  - PV-Überschuss Erkennung mit konfigurierbarer Hysterese
+  - Battery SOC basierte Entscheidungen (Bonus/Penalty System)
+  - 30 Sekunden Cycle Intervall
+  - Umfassendes Logging
 
-**Deployment**
-- ✨ **Deployment Script** (`deploy_ems_updates.sh`) - Automatische Installation
-- ✨ **GitHub Sync Script** (`update_github.sh`) - One-Click GitHub Update
-- ✨ **Systemd Service** - Production-ready Service-Konfiguration
-- ✨ **Test Suite** - Umfassende System-Tests
+#### Web UI
+- **Energy Sources Page** (`webui/templates/energy_sources.html`)
+  - Tab 1: Übersicht mit Value Cards
+  - Tab 2: Energie-Fluss Visualisierung
+  - Tab 3: Quellen-Konfiguration
+  - Auto-Refresh alle 5-60 Sekunden (konfigurierbar)
+  - Live Timestamp "Zuletzt aktualisiert"
+  
+- **Device Management** (`webui/templates/devices.html`)
+  - CRUD Operationen für Devices
+  - Device Discovery (Vorbereitung)
+  - Kategorien und Prioritäten
+  
+- **API Endpoints**
+  - Energy API: `/api/energy/sources`, `/api/energy/current`, `/api/energy/refresh`
+  - Device API: `/api/devices`, `/api/devices/<id>/control`, `/api/devices/<id>/status`
+  - Control: ON/OFF/Toggle für Shelly Devices
+  - Batch Control für mehrere Devices
 
-**Documentation**
-- ✨ **README.md** - Vollständige Projekt-Dokumentation
-- ✨ **DEVELOPMENT.md** - Entwickler-Dokumentation
-- ✨ **CHANGELOG.md** - Versionshistorie
+#### System Integration
+- **Systemd Services**
+  - `ems-optimizer.service` - Optimizer Loop
+  - `ems-webui.service` - Flask Web UI
+  - Auto-Start beim Boot
+  - Auto-Restart bei Fehler
+  - Logging via journald
+  
+- **Deployment Script** (`deploy_services.sh`)
+  - Automatische Service Installation
+  - Service Aktivierung
+  - Status-Anzeige
+  - Hilfreiche Kommando-Übersicht
 
-#### Improved
+### Fixed
 
-**Performance**
-- ⚡ Async/Await für alle I/O-Operationen
-- ⚡ Optimierte Schaltungs-Berechnung mit Hysterese
-- ⚡ Caching für Device-Status
+#### Battery SOC Anzeige
+- **Problem:** Battery SOC wurde nicht angezeigt (zeigte immer 0%)
+- **Root Cause:** 
+  1. Doppeltes "sensor." in entity_id_soc: `sensor.sensor.batterie_soc_2`
+  2. WebUI und Optimizer nutzten unterschiedliche Config-Dateien
+  3. Python Cache verhinderte Code-Updates
+- **Lösung:**
+  1. Config korrigiert zu: `sensor.batterie_soc_2`
+  2. WebUI Config-Pfad geändert zu zentraler Config: `/opt/ems-core/config/energy_sources.json`
+  3. Debug-Logging hinzugefügt zur besseren Fehlersuche
 
-**User Experience**
-- 🎨 Modernes, responsives Web UI Design
-- 🎨 Live-Updates ohne Page Reload
-- 🎨 Intuitive Device-Verwaltung
-- 🎨 Aussagekräftige Fehlermeldungen
+#### Hausverbrauch-Berechnung
+- **Problem:** Falsche Berechnung bei Battery Entladung
+- **Alte Formel:** `House = PV + Grid + Battery` (falsch bei Entladung)
+- **Neue Formel:** `House = PV - Battery + Grid` (korrekt)
+- **Validierung:**
+  - Beispiel 1: PV=3000W, Battery=+500W (lädt), Grid=-1000W → House=1500W ✓
+  - Beispiel 2: PV=1000W, Battery=-500W (entlädt), Grid=+1000W → House=2500W ✓
 
-**Code Quality**
-- 📝 Type Hints für alle Funktionen
-- 📝 Umfassende Docstrings
-- 📝 Logging auf allen Ebenen
-- 📝 Strukturierte Error Handling
+#### Auto-Refresh Mechanismus
+- **Problem:** Timestamp aktualisierte sich, aber Werte blieben gleich
+- **Root Cause:** Frontend rief `/api/energy/current` auf, aber Backend holte keine neuen Daten
+- **Lösung:** `updateValues()` ruft jetzt zuerst `/api/energy/refresh` auf, um Backend zu triggern
 
-#### Technical Details
+### Changed
 
-**Architecture**
+- **Config-Struktur:** Zentralisierte Config in `/opt/ems-core/config/`
+- **Logging:** Ausführlicheres Logging mit Debug-Messages
+- **Error Handling:** Verbesserte Exception Handling in allen Controllern
+
+### Technical Details
+
+#### Dependencies
 ```
-Core Layer:
-├── device_manager.py      # Device CRUD & Persistence
-├── main.py               # Main Event Loop
-└── optimizer/
-    ├── scheduler.py      # Time-based Scheduling
-    └── prioritizer.py    # Priority-based Switching
-
-Controller Layer:
-├── shelly.py            # Shelly Devices
-├── solax.py             # PV/Battery
-├── sdm630.py            # Smartmeter
-└── sg_ready.py          # Heatpump Control
-
-Web Layer:
-├── app.py               # Flask Application
-├── api_routes.py        # REST API
-└── templates/
-    └── devices.html     # Device Management UI
+Flask>=2.3.0
+aiohttp>=3.9.0
+pymodbus>=3.5.0
+pyyaml>=6.0
 ```
 
-**Dependencies**
-- Python 3.9+
-- Flask 3.0+
-- PyYAML
-- aiohttp
-- pymodbus
+#### Python Version
+- Minimum: Python 3.8
+- Tested: Python 3.10, 3.11
 
-**Configuration**
-- Alle Konfigurationen in `config/` Ordner
-- YAML für strukturierte Daten
-- JSON für dynamische Daten
-- Automatisches Backup bei Updates
+#### Architecture
+- **Backend:** Flask + asyncio
+- **Frontend:** Vanilla JavaScript (keine Frameworks)
+- **Data Flow:** Energy Sources → Manager → API → Frontend
+- **Persistence:** JSON Files (Config), journald (Logs)
 
-**API Endpoints**
-- `GET /api/devices` - List all devices
-- `POST /api/devices` - Create device
-- `PUT /api/devices/{id}` - Update device
-- `DELETE /api/devices/{id}` - Delete device
-- `POST /api/devices/discover` - Run discovery
-- `GET /api/devices/stats` - Get statistics
+### Known Issues
 
-#### Migration Notes
+1. **Device Discovery** - Noch nicht implementiert (Placeholder vorhanden)
+2. **Schedules** - Zeitbasierte Regeln noch nicht verfügbar
+3. **Historische Daten** - Keine Speicherung historischer Werte
+4. **Authentication** - Kein Login-System (alle APIs öffentlich)
 
-**From v1.x to v2.0:**
+### Security Notes
 
-1. **Backup alte Konfiguration:**
-   ```bash
-   cp -r config/ config.backup/
-   ```
+- ⚠️ Web UI läuft ohne Authentication (Port 8080)
+- ⚠️ Services laufen als root (für Hardware-Zugriff)
+- ✅ Keine sensiblen Daten im Code (Tokens in Config)
+- ✅ Config-Dateien sind nicht web-accessible
 
-2. **Run Deployment Script:**
-   ```bash
-   ./deploy_ems_updates.sh
-   ```
+### Migration Notes
 
-3. **Migrate Devices:**
-   - Alte Geräte müssen neu über Web UI hinzugefügt werden
-   - Oder manuell in `config/devices.yaml` eintragen
+Für Upgrade von älteren Versionen:
+- Keine Migration nötig (v2.0.0 ist erste Release)
+- Config-Format ist stabil
 
-4. **Test System:**
-   ```bash
-   python3 test_ems_system.py
-   ```
+### Credits
 
-5. **Start Service:**
-   ```bash
-   sudo systemctl restart ems-core
-   ```
-
-#### Known Issues
-
-- 🐛 Discovery könnte bei großen Netzwerken langsam sein
-- 🐛 Web UI aktualisiert nicht automatisch (Reload erforderlich)
-- ⚠️ SG-Ready Logik noch nicht vollständig getestet
-
-#### Contributors
-
-- Initial development and architecture
-- Device Manager implementation
-- Web UI design and implementation
-- Documentation
+Entwickelt mit Unterstützung von Claude (Anthropic AI).
 
 ---
 
-## [1.0.0] - 2024-12-XX
+## [Unreleased]
 
-### Initial Release
+### Planned Features
 
-- Basic Shelly integration
-- Simple scheduling
-- Home Assistant dependency
-- Manual configuration
+#### High Priority
+- Dashboard mit Gesamtübersicht
+- Historische Daten (Tages-/Wochen-Charts)
+- Device Status Live-Anzeige in WebUI
+- Zeitpläne/Schedules für Devices
+
+#### Medium Priority
+- Benachrichtigungen (Email, Push)
+- Wetter-API Integration für PV-Prognose
+- Statistiken (Eigenverbrauch, Autarkie)
+- Export (CSV, JSON)
+
+#### Low Priority
+- User Authentication
+- Multi-User Support
+- Mobile App (PWA)
+- MQTT Integration
+- Machine Learning Prognosen
 
 ---
 
-## Version Schema
+## Version History
 
-Format: `MAJOR.MINOR.PATCH`
-
-- **MAJOR**: Breaking changes
-- **MINOR**: New features (backward compatible)
-- **PATCH**: Bug fixes
+- **v2.0.0** (2026-01-27) - Initial Release
+- **v1.x** - Experimentelle Versionen (nicht veröffentlicht)
 
 ---
 
-## Legend
+## Changelog Konventionen
 
-- ✨ New Feature
-- 🐛 Bug Fix
-- ⚡ Performance
-- 🎨 UI/UX
-- 📝 Documentation
-- 🔧 Configuration
-- ⚠️ Warning
-- 🗑️ Deprecated
-- 🔒 Security
+- **Added** - Neue Features
+- **Changed** - Änderungen an existierenden Features
+- **Deprecated** - Features die bald entfernt werden
+- **Removed** - Entfernte Features
+- **Fixed** - Bug Fixes
+- **Security** - Sicherheits-Fixes

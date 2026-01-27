@@ -33,7 +33,7 @@ try:
     from core.energy_sources import EnergySourcesManager
     from webui.api_energy import api_energy, init_energy_api
     
-    energy_manager = EnergySourcesManager()
+    energy_manager = EnergySourcesManager(config_file='/opt/ems-core/config/energy_sources.json')
     init_energy_api(energy_manager)
     app.register_blueprint(api_energy)
     logger.info("✓ Energy Sources API registered")

@@ -269,6 +269,185 @@
             opacity: 0.6;
             pointer-events: none;
         }
+
+        .info-hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        /* Energy Flow Styles */
+        .flow-canvas {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        
+        .energy-node {
+            position: absolute;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .energy-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        
+        .energy-node .icon { font-size: 32px; margin-bottom: 8px; }
+        .energy-node .label { font-size: 14px; font-weight: 600; margin-bottom: 5px; color: #1f2937; }
+        .energy-node .value { font-size: 24px; font-weight: bold; }
+        .energy-node .unit { font-size: 14px; color: #6b7280; }
+        
+        .node-pv {
+            top: 30px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white; min-width: 180px;
+        }
+        
+        .node-battery {
+            top: 50%; left: 50px; transform: translateY(-50%);
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white; min-width: 160px;
+        }
+        
+        .node-grid {
+            top: 50%; right: 50px; transform: translateY(-50%);
+            min-width: 160px;
+        }
+        
+        .node-grid.export {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        
+        .node-grid.import {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        
+        .node-house {
+            bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white; min-width: 180px;
+        }
+        
+        .flow-particle {
+            position: absolute;
+            width: 12px; height: 12px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+        }
+        
+        .flow-summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .summary-card {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #10b981;
+        }
+        
+        .summary-card h4 {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        
+        .summary-card .summary-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        
+        .battery-soc-bar {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        
+        .battery-soc-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            transition: width 0.5s;
+        }
+
+        /* Auto-Refresh Controls */
+        .refresh-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .refresh-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .refresh-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+        }
+
+        .refresh-indicator.updating {
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .interval-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .interval-selector label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #1f2937;
+        }
+
+        .interval-selector select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .last-update {
+            margin-left: auto;
+            font-size: 13px;
+            color: #6b7280;
+        }
     </style>
 </head>
 <body>
@@ -280,12 +459,35 @@
         
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="switchTab('overview')">📊 Übersicht</button>
+            <button class="nav-tab" onclick="switchTab('flow')">⚡ Energie-Fluss</button>
             <button class="nav-tab" onclick="switchTab('sources')">🔌 Quellen</button>
         </div>
         
         <!-- Tab: Übersicht -->
         <div class="tab-content active" id="tab-overview">
             <h2 style="margin-bottom: 20px;">Aktuelle Werte</h2>
+            
+            <!-- Auto-Refresh Controls -->
+            <div class="refresh-controls">
+                <div class="refresh-status">
+                    <div class="refresh-indicator" id="refresh-indicator"></div>
+                    <span id="refresh-status-text">Auto-Refresh aktiv</span>
+                </div>
+                
+                <div class="interval-selector">
+                    <label>Update-Intervall:</label>
+                    <select id="refresh-interval" onchange="changeRefreshInterval()">
+                        <option value="5000">5 Sekunden</option>
+                        <option value="10000" selected>10 Sekunden</option>
+                        <option value="30000">30 Sekunden</option>
+                        <option value="60000">60 Sekunden</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-primary" onclick="manualRefresh()" id="refresh-btn">🔄 Jetzt aktualisieren</button>
+                
+                <div class="last-update" id="last-update">Noch nicht aktualisiert</div>
+            </div>
             
             <div class="current-values" id="values-container">
                 <div class="value-card">
@@ -327,8 +529,95 @@
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <!-- Tab: Energie-Fluss -->
+        <div class="tab-content" id="tab-flow">
+            <h2 style="margin-bottom: 20px;">Energie-Fluss Live</h2>
             
-            <button class="btn btn-primary" onclick="manualRefresh()" id="refresh-btn">🔄 Aktualisieren</button>
+            <!-- Flow Canvas -->
+            <div class="flow-canvas" id="flow-canvas">
+                <!-- PV Node -->
+                <div class="energy-node node-pv" id="node-pv">
+                    <div class="icon">☀️</div>
+                    <div class="label">PV Erzeugung</div>
+                    <div>
+                        <span class="value" id="flow-pv-value">0</span>
+                        <span class="unit">W</span>
+                    </div>
+                </div>
+                
+                <!-- Battery Node -->
+                <div class="energy-node node-battery" id="node-battery">
+                    <div class="icon">🔋</div>
+                    <div class="label">Batterie</div>
+                    <div>
+                        <span class="value" id="flow-battery-value">0</span>
+                        <span class="unit">W</span>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 14px;">
+                        SOC: <strong id="flow-battery-soc">0</strong>%
+                    </div>
+                </div>
+                
+                <!-- Grid Node -->
+                <div class="energy-node node-grid" id="node-grid">
+                    <div class="icon">🏭</div>
+                    <div class="label" id="grid-label">Netz</div>
+                    <div>
+                        <span class="value" id="flow-grid-value">0</span>
+                        <span class="unit">W</span>
+                    </div>
+                </div>
+                
+                <!-- House Node -->
+                <div class="energy-node node-house" id="node-house">
+                    <div class="icon">🏠</div>
+                    <div class="label">Hausverbrauch</div>
+                    <div>
+                        <span class="value" id="flow-house-value">0</span>
+                        <span class="unit">W</span>
+                    </div>
+                </div>
+                
+                <!-- SVG for Flow Lines -->
+                <svg id="flow-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                    <defs>
+                        <marker id="arrowhead-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#10b981" />
+                        </marker>
+                        <marker id="arrowhead-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#3b82f6" />
+                        </marker>
+                        <marker id="arrowhead-red" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#ef4444" />
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+            
+            <!-- Summary Cards -->
+            <div class="flow-summary-cards">
+                <div class="summary-card">
+                    <h4>Eigenverbrauch</h4>
+                    <div class="summary-value" id="summary-self">0 W</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Autarkie-Grad</h4>
+                    <div class="summary-value" id="summary-autarky">0%</div>
+                </div>
+                <div class="summary-card">
+                    <h4>PV-Überschuss</h4>
+                    <div class="summary-value" id="summary-surplus">0 W</div>
+                </div>
+                <div class="summary-card">
+                    <h4>Batterie SOC</h4>
+                    <div class="summary-value" id="summary-battery-soc">0%</div>
+                    <div class="battery-soc-bar">
+                        <div class="battery-soc-fill" id="battery-soc-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- Tab: Quellen -->
@@ -336,6 +625,16 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2>Datenquellen</h2>
                 <button class="btn btn-primary" onclick="openAddSourceModal()">➕ Quelle hinzufügen</button>
+            </div>
+            
+            <!-- Auto-Refresh Controls für Sources Tab -->
+            <div class="refresh-controls">
+                <div class="refresh-status">
+                    <div class="refresh-indicator" id="refresh-indicator-sources"></div>
+                    <span id="refresh-status-text-sources">Auto-Refresh aktiv</span>
+                </div>
+                
+                <div class="last-update" id="last-update-sources">Noch nicht aktualisiert</div>
             </div>
             
             <div class="source-type-section">
@@ -395,6 +694,8 @@
     <script>
         let sources = [];
         let autoRefreshInterval;
+        let currentRefreshIntervalMs = 10000; // Default: 10 Sekunden
+        let lastUpdateTime = null;
         
         function switchTab(tab) {
             document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -403,11 +704,8 @@
             event.target.classList.add('active');
             document.getElementById('tab-' + tab).classList.add('active');
             
-            if (tab === 'overview') {
-                startAutoRefresh();
-            } else {
-                stopAutoRefresh();
-            }
+            // Auto-Refresh starten für beide Tabs
+            startAutoRefresh();
         }
         
         async function loadSources() {
@@ -416,6 +714,7 @@
                 const data = await res.json();
                 sources = data.sources || [];
                 renderSources();
+                updateLastUpdateTime('sources');
             } catch (err) {
                 console.error('Failed to load sources:', err);
             }
@@ -446,10 +745,19 @@
         function createSourceCard(source) {
             const card = document.createElement('div');
             card.className = 'source-card' + (source.enabled ? ' enabled' : '');
+            
+            // Formatiere last_update Zeit
+            let lastUpdateText = 'Nie';
+            if (source.last_update) {
+                const updateTime = new Date(source.last_update);
+                lastUpdateText = updateTime.toLocaleTimeString('de-DE');
+            }
+            
             card.innerHTML = `
                 <div class="source-info">
                     <h4>${source.name}</h4>
                     <p>${source.provider} • ${source.config.ip || source.config.entity_id || 'Config'}</p>
+                    <p style="font-size: 12px; color: #9ca3af; margin-top: 4px;">Zuletzt: ${lastUpdateText}</p>
                 </div>
                 <div class="source-actions">
                     <span class="source-value">${Math.round(source.last_value || 0)}${source.type === 'battery' ? '%' : 'W'}</span>
@@ -467,49 +775,263 @@
         async function manualRefresh() {
             const btn = document.getElementById('refresh-btn');
             const container = document.getElementById('values-container');
+            const indicator = document.getElementById('refresh-indicator');
             
             btn.disabled = true;
             btn.textContent = '⏳ Lädt...';
             container.classList.add('loading');
+            indicator.classList.add('updating');
             
             try {
-                const refreshRes = await fetch('/api/energy/refresh', { method: 'POST' });
-                const refreshData = await refreshRes.json();
-                
-                if (refreshData.success) {
-                    await updateValues();
-                } else {
-                    alert('Fehler: ' + refreshData.error);
-                }
+                // updateValues() triggert jetzt selbst das Backend
+                await updateValues(true);
+                await loadSources(); // Auch Sources neu laden
             } catch (err) {
                 alert('Fehler: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.textContent = '🔄 Aktualisieren';
+                btn.textContent = '🔄 Jetzt aktualisieren';
                 container.classList.remove('loading');
+                indicator.classList.remove('updating');
             }
         }
         
-        async function updateValues() {
+        async function updateValues(triggerBackend = true) {
+            const indicator = document.getElementById('refresh-indicator');
+            const indicatorSources = document.getElementById('refresh-indicator-sources');
+            
+            // Zeige Update-Animation
+            indicator.classList.add('updating');
+            indicatorSources.classList.add('updating');
+            
             try {
+                // WICHTIG: Erst Backend triggern um neue Daten zu holen
+                if (triggerBackend) {
+                    await fetch('/api/energy/refresh', { method: 'POST' });
+                }
+                
+                // Dann aktuelle Werte abrufen
                 const res = await fetch('/api/energy/current');
                 const data = await res.json();
                 
+                // Update Overview Tab
                 document.getElementById('val-pv').textContent = Math.round(data.pv_power || 0);
                 document.getElementById('val-grid').textContent = Math.round(data.grid_power || 0);
                 document.getElementById('val-battery').textContent = Math.round(data.battery_power || 0);
                 document.getElementById('val-battery-soc').textContent = Math.round(data.battery_soc || 0);
                 document.getElementById('val-house').textContent = Math.round(data.house_consumption || 0);
                 document.getElementById('val-available').textContent = Math.round(data.available_power || 0);
+                
+                // Update Flow Tab
+                updateFlowVisualization(data);
+                
+                updateLastUpdateTime('overview');
             } catch (err) {
                 console.error('Update failed:', err);
+            } finally {
+                // Entferne Animation nach 500ms
+                setTimeout(() => {
+                    indicator.classList.remove('updating');
+                    indicatorSources.classList.remove('updating');
+                }, 500);
             }
+        }
+        
+        function updateFlowVisualization(data) {
+            // Update Flow Node Values
+            document.getElementById('flow-pv-value').textContent = Math.round(data.pv_power || 0);
+            document.getElementById('flow-battery-value').textContent = Math.round(Math.abs(data.battery_power || 0));
+            document.getElementById('flow-grid-value').textContent = Math.round(Math.abs(data.grid_power || 0));
+            document.getElementById('flow-house-value').textContent = Math.round(data.house_consumption || 0);
+            document.getElementById('flow-battery-soc').textContent = Math.round(data.battery_soc || 0);
+            
+            // Update Grid Node Color
+            const gridNode = document.getElementById('node-grid');
+            const gridLabel = document.getElementById('grid-label');
+            
+            if (data.grid_power < 0) {
+                gridNode.className = 'energy-node node-grid export';
+                gridLabel.textContent = 'Netz (Einspeisung)';
+            } else {
+                gridNode.className = 'energy-node node-grid import';
+                gridLabel.textContent = 'Netz (Bezug)';
+            }
+            
+            // Draw Flow Lines
+            drawFlowLines(data);
+            
+            // Update Summary
+            updateFlowSummary(data);
+        }
+        
+        function drawFlowLines(data) {
+            const svg = document.getElementById('flow-svg');
+            // Clear existing lines (keep defs)
+            while (svg.childNodes.length > 1) {
+                svg.removeChild(svg.lastChild);
+            }
+            
+            const pvNode = document.getElementById('node-pv');
+            const batteryNode = document.getElementById('node-battery');
+            const gridNode = document.getElementById('node-grid');
+            const houseNode = document.getElementById('node-house');
+            
+            const pvCenter = getNodeCenter(pvNode);
+            const batteryCenter = getNodeCenter(batteryNode);
+            const gridCenter = getNodeCenter(gridNode);
+            const houseCenter = getNodeCenter(houseNode);
+            
+            // PV -> House (wenn PV erzeugt)
+            if (data.pv_power > 0) {
+                drawFlowLine(pvCenter.x, pvCenter.y, houseCenter.x, houseCenter.y, '#10b981', data.pv_power);
+            }
+            
+            // PV -> Battery (wenn lädt)
+            if (data.battery_power > 0 && data.pv_power > 0) {
+                drawFlowLine(pvCenter.x, pvCenter.y, batteryCenter.x, batteryCenter.y, '#3b82f6', data.battery_power);
+            }
+            
+            // Battery -> House (wenn entlädt)
+            if (data.battery_power < 0) {
+                drawFlowLine(batteryCenter.x, batteryCenter.y, houseCenter.x, houseCenter.y, '#3b82f6', Math.abs(data.battery_power));
+            }
+            
+            // Grid -> House (Netzbezug)
+            if (data.grid_power > 0) {
+                drawFlowLine(gridCenter.x, gridCenter.y, houseCenter.x, houseCenter.y, '#ef4444', data.grid_power);
+            }
+            
+            // House -> Grid (Einspeisung)
+            if (data.grid_power < 0) {
+                drawFlowLine(houseCenter.x, houseCenter.y, gridCenter.x, gridCenter.y, '#10b981', Math.abs(data.grid_power));
+            }
+        }
+        
+        function getNodeCenter(node) {
+            const rect = node.getBoundingClientRect();
+            const canvasRect = document.getElementById('flow-canvas').getBoundingClientRect();
+            return {
+                x: rect.left + rect.width / 2 - canvasRect.left,
+                y: rect.top + rect.height / 2 - canvasRect.top
+            };
+        }
+        
+        function drawFlowLine(x1, y1, x2, y2, color, power) {
+            const svg = document.getElementById('flow-svg');
+            
+            // Line thickness based on power
+            const thickness = Math.min(Math.max(power / 500, 2), 8);
+            
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', thickness);
+            line.setAttribute('stroke-linecap', 'round');
+            line.setAttribute('opacity', '0.6');
+            
+            const markerColor = color === '#10b981' ? 'green' : color === '#3b82f6' ? 'blue' : 'red';
+            line.setAttribute('marker-end', `url(#arrowhead-${markerColor})`);
+            
+            svg.appendChild(line);
+            
+            // Add animated particle for significant flows
+            if (power > 100) {
+                addFlowParticle(x1, y1, x2, y2, color);
+            }
+        }
+        
+        function addFlowParticle(x1, y1, x2, y2, color) {
+            const canvas = document.getElementById('flow-canvas');
+            const particle = document.createElement('div');
+            particle.className = 'flow-particle';
+            particle.style.background = color;
+            particle.style.boxShadow = `0 0 10px ${color}`;
+            particle.style.left = x1 + 'px';
+            particle.style.top = y1 + 'px';
+            
+            canvas.appendChild(particle);
+            
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            
+            const animation = particle.animate([
+                { left: x1 + 'px', top: y1 + 'px', opacity: 0 },
+                { left: (x1 + dx * 0.1) + 'px', top: (y1 + dy * 0.1) + 'px', opacity: 1, offset: 0.1 },
+                { left: (x1 + dx * 0.9) + 'px', top: (y1 + dy * 0.9) + 'px', opacity: 1, offset: 0.9 },
+                { left: x2 + 'px', top: y2 + 'px', opacity: 0 }
+            ], {
+                duration: 2000,
+                iterations: Infinity
+            });
+            
+            // Remove particle after 10 seconds to prevent memory leak
+            setTimeout(() => {
+                animation.cancel();
+                particle.remove();
+            }, 10000);
+        }
+        
+        function updateFlowSummary(data) {
+            // Eigenverbrauch = PV - Einspeisung
+            const selfConsumption = Math.max(0, data.pv_power + Math.min(0, data.grid_power));
+            document.getElementById('summary-self').textContent = Math.round(selfConsumption) + ' W';
+            
+            // Autarkie-Grad
+            let autarky = 0;
+            if (data.house_consumption > 0) {
+                const gridImport = Math.max(0, data.grid_power);
+                autarky = ((data.house_consumption - gridImport) / data.house_consumption) * 100;
+                autarky = Math.max(0, Math.min(100, autarky));
+            }
+            document.getElementById('summary-autarky').textContent = Math.round(autarky) + '%';
+            
+            // PV-Überschuss
+            const surplus = Math.abs(Math.min(0, data.grid_power));
+            document.getElementById('summary-surplus').textContent = Math.round(surplus) + ' W';
+            
+            // Battery SOC
+            document.getElementById('summary-battery-soc').textContent = Math.round(data.battery_soc) + '%';
+            document.getElementById('battery-soc-bar').style.width = data.battery_soc + '%';
+        }
+        
+        function updateLastUpdateTime(tab) {
+            lastUpdateTime = new Date();
+            const timeStr = lastUpdateTime.toLocaleTimeString('de-DE');
+            
+            if (tab === 'overview') {
+                document.getElementById('last-update').textContent = `Zuletzt aktualisiert: ${timeStr}`;
+            } else if (tab === 'sources') {
+                document.getElementById('last-update-sources').textContent = `Zuletzt aktualisiert: ${timeStr}`;
+            }
+        }
+        
+        function changeRefreshInterval() {
+            const select = document.getElementById('refresh-interval');
+            currentRefreshIntervalMs = parseInt(select.value);
+            
+            // Restart auto-refresh mit neuem Intervall
+            startAutoRefresh();
+            
+            console.log(`Refresh interval changed to ${currentRefreshIntervalMs}ms`);
         }
         
         function startAutoRefresh() {
             stopAutoRefresh();
-            updateValues();
-            autoRefreshInterval = setInterval(updateValues, 10000);
+            
+            // Erste Aktualisierung sofort (mit Backend-Trigger)
+            updateValues(true);
+            loadSources();
+            
+            // Dann im gewählten Intervall (mit Backend-Trigger)
+            autoRefreshInterval = setInterval(() => {
+                updateValues(true);  // ← Jetzt mit Backend-Trigger!
+                loadSources(); // Auch Sources regelmäßig neu laden
+            }, currentRefreshIntervalMs);
+            
+            console.log(`Auto-refresh started with ${currentRefreshIntervalMs}ms interval`);
         }
         
         function stopAutoRefresh() {
@@ -543,6 +1065,7 @@
         }
         
         function updateConfigFields() {
+            const type = document.getElementById('source-type').value;
             const provider = document.getElementById('source-provider').value;
             const container = document.getElementById('config-fields');
             
@@ -558,11 +1081,31 @@
                         <label>Access Token</label>
                         <input type="text" id="config-token" placeholder="Long-lived access token">
                     </div>
-                    <div class="form-group">
-                        <label>Entity ID</label>
-                        <input type="text" id="config-entity" placeholder="sensor.pv_power">
-                    </div>
                 `;
+                
+                // Unterschiedliche Felder für Battery vs. andere
+                if (type === 'battery') {
+                    html += `
+                        <div class="form-group">
+                            <label>Entity ID (Battery Power)</label>
+                            <input type="text" id="config-entity" placeholder="sensor.battery_power">
+                            <div class="info-hint">Entity für Battery Power in Watt (positiv = Laden, negativ = Entladen)</div>
+                        </div>
+                        <div class="form-group">
+                            <label>Entity ID (Battery SOC)</label>
+                            <input type="text" id="config-entity-soc" placeholder="sensor.battery_soc">
+                            <div class="info-hint">Entity für Battery State of Charge in % (0-100)</div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="form-group">
+                            <label>Entity ID</label>
+                            <input type="text" id="config-entity" placeholder="sensor.pv_power">
+                        </div>
+                    `;
+                }
+                
             } else if (provider === 'shelly' || provider === 'shelly_3em' || provider === 'shelly_pro_3em') {
                 html = `
                     <div class="form-group">
@@ -591,6 +1134,7 @@
         }
         
         async function saveSource() {
+            const type = document.getElementById('source-type').value;
             const provider = document.getElementById('source-provider').value;
             let config = {};
             
@@ -600,6 +1144,15 @@
                     token: document.getElementById('config-token').value,
                     entity_id: document.getElementById('config-entity').value
                 };
+                
+                // Für Battery: zweite Entity ID für SOC hinzufügen
+                if (type === 'battery') {
+                    const socEntityField = document.getElementById('config-entity-soc');
+                    if (socEntityField && socEntityField.value) {
+                        config.entity_id_soc = socEntityField.value;
+                    }
+                }
+                
             } else if (provider === 'shelly' || provider === 'shelly_3em' || provider === 'shelly_pro_3em') {
                 config = { ip: document.getElementById('config-ip').value };
             } else if (provider === 'solax_modbus' || provider === 'sdm630_modbus') {
@@ -612,7 +1165,7 @@
             
             const sourceData = {
                 name: document.getElementById('source-name').value,
-                type: document.getElementById('source-type').value,
+                type: type,
                 provider: provider,
                 config: config,
                 enabled: true
@@ -661,8 +1214,7 @@
             }
         }
         
+        // Starte Auto-Refresh beim Laden der Seite
         loadSources();
         startAutoRefresh();
     </script>
-</body>
-</html>
