@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EMS-Core v2.0{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --warning: #fbbf24;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --dark: #1f2937;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 30px 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header .version {
+            font-size: 0.85em;
+            opacity: 0.9;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 25px;
+        }
+
+        .nav-section-title {
+            padding: 0 20px;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            color: var(--gray-500);
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--gray-700);
+            text-decoration: none;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover {
+            background: var(--gray-50);
+            color: var(--primary);
+        }
+
+        .nav-link.active {
+            background: var(--gray-50);
+            color: var(--primary);
+            border-left-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .nav-link-icon {
+            font-size: 1.3em;
+            margin-right: 12px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid var(--gray-200);
+            font-size: 0.85em;
+            color: var(--gray-500);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.online {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .status-indicator.offline {
+            background: var(--gray-400);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 30px;
+            max-width: calc(100% - 260px);
+        }
+
+        /* Breadcrumbs */
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: var(--gray-600);
+        }
+
+        .breadcrumbs a {
+            color: var(--gray-600);
+            text-decoration: none;
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--primary);
+        }
+
+        .breadcrumbs .separator {
+            color: var(--gray-400);
+        }
+
+        /* Page Header */
+        .page-header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            font-size: 2em;
+            color: var(--gray-900);
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: var(--gray-600);
+            font-size: 1.05em;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            gap: 8px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--gray-300);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85em;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .card-header h2 {
+            font-size: 1.3em;
+            color: var(--gray-900);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification.success {
+            background: var(--success);
+            color: white;
+        }
+
+        .notification.error {
+            background: var(--danger);
+            color: white;
+        }
+
+        .notification.info {
+            background: var(--info);
+            color: white;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+                z-index: 1000;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                max-width: 100%;
+                padding: 20px;
+            }
+
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .page-header h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+        ☰
+    </button>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>⚡ EMS-Core</h1>
+            <div class="version">Version 2.0</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Übersicht</div>
+                <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                    <span class="nav-link-icon">🏠</span>
+                    Home
+                </a>
+                <a href="/dashboard" class="nav-link {% if request.path == '/dashboard' %}active{% endif %}">
+                    <span class="nav-link-icon">📊</span>
+                    Dashboard
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Verwaltung</div>
+                <a href="/devices" class="nav-link {% if request.path == '/devices' %}active{% endif %}">
+                    <span class="nav-link-icon">🔌</span>
+                    Geräte
+                </a>
+                <a href="/energy_sources" class="nav-link {% if request.path == '/energy_sources' %}active{% endif %}">
+                    <span class="nav-link-icon">⚙️</span>
+                    Energie-Quellen
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Einstellungen</div>
+                <a href="/settings" class="nav-link {% if request.path == '/settings' %}active{% endif %}">
+                    <span class="nav-link-icon">⚙️</span>
+                    Einstellungen
+                </a>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div>
+                <span class="status-indicator online"></span>
+                <span id="system-status">System Online</span>
+            </div>
+            <div style="margin-top: 10px; font-size: 0.8em;">
+                © 2026 svkux
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block breadcrumbs %}
+        <div class="breadcrumbs">
+            <a href="/">Home</a>
+        </div>
+        {% endblock %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // Toggle Sidebar (Mobile)
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // Close sidebar when clicking outside (Mobile)
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.querySelector('.mobile-menu-toggle');
+            
+            if (window.innerWidth <= 768) {
+                if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
+                    sidebar.classList.remove('open');
+                }
+            }
+        });
+
+        // Notification Helper
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.style.display = 'block';
+
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+
+        // Check System Status
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                const statusEl = document.getElementById('system-status');
+                const indicator = document.querySelector('.status-indicator');
+                
+                if (data.status === 'healthy') {
+                    statusEl.textContent = 'System Online';
+                    indicator.classList.add('online');
+                    indicator.classList.remove('offline');
+                } else {
+                    statusEl.textContent = 'System Offline';
+                    indicator.classList.remove('online');
+                    indicator.classList.add('offline');
+                }
+            } catch (error) {
+                console.error('Status check failed:', error);
+            }
+        }
+
+        // Initial status check
+        checkSystemStatus();
+
+        // Check every 30 seconds
+        setInterval(checkSystemStatus, 30000);
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
