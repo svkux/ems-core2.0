@@ -1,0 +1,13 @@
+{
+  "overrides": [
+    {
+      "device_id": "plug_wohnzimmer",
+      "mode": "manual_on",
+      "set_by": "api",
+      "set_at": "2026-01-28T17:25:55.738809",
+      "expires_at": "2026-01-28T18:25:55.738765",
+      "reason": "Manuelle Steuerung via WebUI"
+    }
+  ],
+  "last_updated": "2026-01-28T17:25:55.739281"
+}

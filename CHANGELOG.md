@@ -1,199 +1,269 @@
 # Changelog
 
-Alle wichtigen Änderungen an EMS-Core werden hier dokumentiert.
+Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
 
-Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
+Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/),
+und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
+
+## [2.0.1] - 2026-01-28
+
+### ✨ Added
+- **Manual Override System** - Manuelle Gerätesteuerung überschreibt alle Automatismen
+  - 3 Modi: AUTO, MANUAL_ON, MANUAL_OFF
+  - Zeitbasierte Overrides mit auto-expire
+  - REST API für Override-Steuerung
+  - Persistenz über Neustarts
+  - Integration in Optimizer mit höchster Priorität
+  
+- **Scheduler System** - Zeitbasierte Gerätesteuerung
+  - TIME_WINDOW: Zeitfenster-basierte Steuerung
+  - TIME_BLOCK: Blockierung zu bestimmten Zeiten
+  - CONDITIONAL: Zeit + Energie-Bedingungen (z.B. PV > 2000W)
+  - Wochentags-Support
+  - Priority Override Support
+  - JSON-basierte Persistenz
+  
+- **Web UI Redesign** - Komplett überarbeitete Benutzeroberfläche
+  - Einheitliche Sidebar Navigation auf allen Seiten
+  - Breadcrumbs für bessere Orientierung
+  - Device List mit Manual Override Buttons (EIN/AUS/AUTO)
+  - Override Status Anzeige mit 👤 Symbol
+  - Filter & Suchfunktion für Geräte
+  - Toast Notifications für User Feedback
+  - Mobile-responsive Design
+  - Live System Status in Sidebar
+  
+- **Dashboard API** - Neuer `/api/dashboard/summary` Endpoint
+  - Liefert alle Dashboard-Daten in einem Call
+  - Energy Data, Device Stats, Active Devices
+  
+- **Dokumentation**
+  - SCHEDULER_README.md - Vollständige Scheduler Dokumentation
+  - OVERRIDE_README.md - Manual Override System Guide
+  - WEBUI_README.md - Web UI Redesign Guide
+  - BUGFIXES.md - Migration Guide von v2.0.0
+
+### 🐛 Fixed
+- Fixed DeviceConfig Inkonsistenzen in main.py
+  - `device.connection_params.get('ip')` → `device.ip`
+  - `device.power_rating` → `device.power`
+- Fixed Async Support in Flask app.py
+  - Added `run_async()` helper function
+- Improved error handling in device_manager.py
+  - Better validation with IP format checks
+  - Port range validation (1-65535)
+  - Improved error messages
+
+### 🔄 Changed
+- **Optimizer Hierarchie** - Neue Entscheidungslogik:
+  1. Manual Override (höchste Priorität)
+  2. Schedule (force_off/force_on)
+  3. PV-Optimierung (normale Logik)
+- Updated main.py zu main_final.py mit vollständiger Integration
+- Updated app.py mit Override API Integration
+- Improved logging mit Emoji-Markern:
+  - 👤 für Manual Override
+  - 🕐 für Schedule
+  - ⚡ für PV-Optimierung
+
+### 📚 Documentation
+- Updated README.md mit allen neuen Features
+- Added API Examples für alle Endpoints
+- Added Troubleshooting Section
+- Added Development Setup Guide
+
+### 🧪 Testing
+- Added test functions in all new modules
+  - device_override.py mit Beispiel-Tests
+  - scheduler.py mit Time Window Tests
+  - schedule_manager.py mit CRUD Tests
 
 ## [2.0.0] - 2026-01-27
 
-### 🎉 Initial Release - Vollständiges EMS-Core v2.0
-
-### Added
-
-#### Energy Management
-- **Energy Sources Manager** (`core/energy_sources.py`)
-  - Support für PV, Grid, Battery Sources
-  - Provider: Home Assistant, Shelly 3EM, Solax Modbus, SDM630
-  - Battery SOC Monitoring und Anzeige
-  - Auto-Update Mechanismus
-  - Hausverbrauch-Berechnung: `House = PV - Battery + Grid`
+### ✨ Added
+- Initial Release von EMS-Core v2.0
+- **Energy Sources Management**
+  - PV-Erzeugung (Home Assistant, Solax Modbus)
+  - Netz-Messung (Shelly 3EM, SDM630)
+  - Batterie (Home Assistant, Solax Modbus) mit SOC
+  - Auto-Refresh konfigurierbar (5-60s)
   
 - **Energy Flow Visualisierung**
   - Live Sankey-Diagramm mit animierten Partikeln
-  - Dynamische Farbcodierung (PV=Grün, Battery=Blau, Grid=Rot/Grün)
-  - Summary Cards: Eigenverbrauch, Autarkie-Grad, PV-Überschuss
-  - Battery SOC Progress Bar
-  - Integriert als Tab in Energy Sources Page
-
-#### Device Control
-- **Shelly Controller** (`core/controllers/shelly.py`)
-  - Vollständiger Support für Gen1 (Plug, 1PM, 2.5, 3EM)
-  - Vollständiger Support für Gen2 (Plus, Pro)
-  - Funktionen: turn_on, turn_off, toggle, get_status, get_power
-  - Async + Sync Wrapper für Flask Integration
+  - Eigenverbrauch, Autarkie-Grad, PV-Überschuss
+  - Battery SOC mit Progress Bar
   
-- **SG-Ready Controller** (`core/controllers/sg_ready.py`)
-  - 4 Betriebsmodi: OFF, NORMAL, RECOMMENDED, FORCED
-  - 2-Relais Steuerung für SG-Ready Eingänge
-  - PV-Überschuss Mode für Wärmepumpen
-
-#### Optimizer
-- **Main Optimizer Loop** (`core/main.py`)
-  - Prioritäts-basierte Device Steuerung
-  - 5 Prioritäts-Level: CRITICAL, HIGH, MEDIUM, LOW, OPTIONAL
-  - PV-Überschuss Erkennung mit konfigurierbarer Hysterese
-  - Battery SOC basierte Entscheidungen (Bonus/Penalty System)
+- **Device Control**
+  - Shelly Plug/1PM/Plus/Pro (Gen1 + Gen2)
+  - SG-Ready Wärmepumpen Steuerung (4 Modi)
+  - Ein/Aus/Toggle Steuerung
+  - Live Power Monitoring
+  
+- **Optimizer Loop**
+  - Prioritäts-basierte Steuerung (CRITICAL → OPTIONAL)
+  - PV-Überschuss Erkennung
+  - Battery SOC basierte Entscheidungen
+  - Hysterese gegen Flackern (100W)
   - 30 Sekunden Cycle Intervall
-  - Umfassendes Logging
-
-#### Web UI
-- **Energy Sources Page** (`webui/templates/energy_sources.html`)
-  - Tab 1: Übersicht mit Value Cards
-  - Tab 2: Energie-Fluss Visualisierung
-  - Tab 3: Quellen-Konfiguration
-  - Auto-Refresh alle 5-60 Sekunden (konfigurierbar)
-  - Live Timestamp "Zuletzt aktualisiert"
   
-- **Device Management** (`webui/templates/devices.html`)
-  - CRUD Operationen für Devices
-  - Device Discovery (Vorbereitung)
-  - Kategorien und Prioritäten
+- **Web UI**
+  - Device Management (CRUD)
+  - Energy Sources Configuration
+  - Live Dashboard mit aktuellen Werten
+  - Responsive Design
+  - Landing Page mit System-Übersicht
   
-- **API Endpoints**
-  - Energy API: `/api/energy/sources`, `/api/energy/current`, `/api/energy/refresh`
-  - Device API: `/api/devices`, `/api/devices/<id>/control`, `/api/devices/<id>/status`
-  - Control: ON/OFF/Toggle für Shelly Devices
-  - Batch Control für mehrere Devices
-
-#### System Integration
 - **Systemd Services**
-  - `ems-optimizer.service` - Optimizer Loop
-  - `ems-webui.service` - Flask Web UI
+  - ems-optimizer.service für Optimizer Loop
+  - ems-webui.service für Flask Web UI
   - Auto-Start beim Boot
   - Auto-Restart bei Fehler
   - Logging via journald
   
-- **Deployment Script** (`deploy_services.sh`)
-  - Automatische Service Installation
-  - Service Aktivierung
-  - Status-Anzeige
-  - Hilfreiche Kommando-Übersicht
+- **REST API**
+  - Device API (`/api/devices`)
+  - Energy API (`/api/energy`)
+  - Health Check (`/health`)
+  
+- **Dokumentation**
+  - README.md mit Feature-Übersicht
+  - INSTALLATION.md mit Schritt-für-Schritt Anleitung
+  - API_DOCUMENTATION.md mit allen Endpoints
+  - TROUBLESHOOTING.md für häufige Probleme
 
-### Fixed
+### 🏗️ Architecture
+- Modulare Code-Struktur
+  - core/ für Backend-Logik
+  - webui/ für Frontend
+  - config/ für Konfigurationen
+  - controllers/ für Device-Controller
+- YAML-basierte Device-Konfiguration
+- JSON-basierte Energy Sources Konfiguration
+- Async/Await für I/O-Operationen
 
-#### Battery SOC Anzeige
-- **Problem:** Battery SOC wurde nicht angezeigt (zeigte immer 0%)
-- **Root Cause:** 
-  1. Doppeltes "sensor." in entity_id_soc: `sensor.sensor.batterie_soc_2`
-  2. WebUI und Optimizer nutzten unterschiedliche Config-Dateien
-  3. Python Cache verhinderte Code-Updates
-- **Lösung:**
-  1. Config korrigiert zu: `sensor.batterie_soc_2`
-  2. WebUI Config-Pfad geändert zu zentraler Config: `/opt/ems-core/config/energy_sources.json`
-  3. Debug-Logging hinzugefügt zur besseren Fehlersuche
-
-#### Hausverbrauch-Berechnung
-- **Problem:** Falsche Berechnung bei Battery Entladung
-- **Alte Formel:** `House = PV + Grid + Battery` (falsch bei Entladung)
-- **Neue Formel:** `House = PV - Battery + Grid` (korrekt)
-- **Validierung:**
-  - Beispiel 1: PV=3000W, Battery=+500W (lädt), Grid=-1000W → House=1500W ✓
-  - Beispiel 2: PV=1000W, Battery=-500W (entlädt), Grid=+1000W → House=2500W ✓
-
-#### Auto-Refresh Mechanismus
-- **Problem:** Timestamp aktualisierte sich, aber Werte blieben gleich
-- **Root Cause:** Frontend rief `/api/energy/current` auf, aber Backend holte keine neuen Daten
-- **Lösung:** `updateValues()` ruft jetzt zuerst `/api/energy/refresh` auf, um Backend zu triggern
-
-### Changed
-
-- **Config-Struktur:** Zentralisierte Config in `/opt/ems-core/config/`
-- **Logging:** Ausführlicheres Logging mit Debug-Messages
-- **Error Handling:** Verbesserte Exception Handling in allen Controllern
-
-### Technical Details
-
-#### Dependencies
-```
-Flask>=2.3.0
-aiohttp>=3.9.0
-pymodbus>=3.5.0
-pyyaml>=6.0
-```
-
-#### Python Version
-- Minimum: Python 3.8
-- Tested: Python 3.10, 3.11
-
-#### Architecture
-- **Backend:** Flask + asyncio
-- **Frontend:** Vanilla JavaScript (keine Frameworks)
-- **Data Flow:** Energy Sources → Manager → API → Frontend
-- **Persistence:** JSON Files (Config), journald (Logs)
-
-### Known Issues
-
-1. **Device Discovery** - Noch nicht implementiert (Placeholder vorhanden)
-2. **Schedules** - Zeitbasierte Regeln noch nicht verfügbar
-3. **Historische Daten** - Keine Speicherung historischer Werte
-4. **Authentication** - Kein Login-System (alle APIs öffentlich)
-
-### Security Notes
-
-- ⚠️ Web UI läuft ohne Authentication (Port 8080)
-- ⚠️ Services laufen als root (für Hardware-Zugriff)
-- ✅ Keine sensiblen Daten im Code (Tokens in Config)
-- ✅ Config-Dateien sind nicht web-accessible
-
-### Migration Notes
-
-Für Upgrade von älteren Versionen:
-- Keine Migration nötig (v2.0.0 ist erste Release)
-- Config-Format ist stabil
-
-### Credits
-
-Entwickelt mit Unterstützung von Claude (Anthropic AI).
+### 📦 Dependencies
+- Flask für Web UI
+- aiohttp für async HTTP requests
+- PyYAML für YAML parsing
+- pymodbus für Modbus communication (optional)
 
 ---
 
-## [Unreleased]
+## Unreleased
 
-### Planned Features
+### Geplant für v2.1
+- [ ] Historische Daten & Charts
+- [ ] Schedule Management UI
+- [ ] Settings Page
+- [ ] Export/Import Configs
+- [ ] Wetter-Integration
 
-#### High Priority
-- Dashboard mit Gesamtübersicht
-- Historische Daten (Tages-/Wochen-Charts)
-- Device Status Live-Anzeige in WebUI
-- Zeitpläne/Schedules für Devices
+### Geplant für v2.2
+- [ ] Benachrichtigungen (Email/Push)
+- [ ] Statistiken Dashboard
+- [ ] Dark Mode
+- [ ] PWA Support
 
-#### Medium Priority
-- Benachrichtigungen (Email, Push)
-- Wetter-API Integration für PV-Prognose
-- Statistiken (Eigenverbrauch, Autarkie)
-- Export (CSV, JSON)
-
-#### Low Priority
-- User Authentication
-- Multi-User Support
-- Mobile App (PWA)
-- MQTT Integration
-- Machine Learning Prognosen
+### Langfristige Roadmap
+- [ ] Machine Learning für Verbrauchsprognose
+- [ ] Strompreis-Integration
+- [ ] MQTT Support
+- [ ] Multi-User System
+- [ ] Mobile App
 
 ---
 
 ## Version History
 
-- **v2.0.0** (2026-01-27) - Initial Release
-- **v1.x** - Experimentelle Versionen (nicht veröffentlicht)
+| Version | Datum | Beschreibung |
+|---------|-------|--------------|
+| 2.0.1 | 2026-01-28 | Manual Override + Scheduler + UI Redesign |
+| 2.0.0 | 2026-01-27 | Initial Release |
 
 ---
 
-## Changelog Konventionen
+## Migration Guides
 
-- **Added** - Neue Features
-- **Changed** - Änderungen an existierenden Features
-- **Deprecated** - Features die bald entfernt werden
-- **Removed** - Entfernte Features
-- **Fixed** - Bug Fixes
-- **Security** - Sicherheits-Fixes
+### Von 2.0.0 zu 2.0.1
+
+1. **Backup erstellen:**
+```bash
+cd /opt/ems-core
+sudo systemctl stop ems-optimizer ems-webui
+cp -r /opt/ems-core /opt/ems-core.backup
+```
+
+2. **Code aktualisieren:**
+```bash
+git pull origin main
+```
+
+3. **Neue Dateien deployen:**
+```bash
+# Override System
+cp core/device_override.py /opt/ems-core/core/
+cp webui/api_override.py /opt/ems-core/webui/
+
+# Scheduler
+mkdir -p /opt/ems-core/core/optimizer
+cp core/optimizer/scheduler.py /opt/ems-core/core/optimizer/
+cp core/optimizer/schedule_manager.py /opt/ems-core/core/optimizer/
+
+# Updated Files
+cp core/main.py /opt/ems-core/core/
+cp core/device_manager.py /opt/ems-core/core/
+cp webui/app.py /opt/ems-core/webui/
+
+# New Templates
+cp webui/templates/base.html /opt/ems-core/webui/templates/
+cp webui/templates/index.html /opt/ems-core/webui/templates/
+cp webui/templates/devices.html /opt/ems-core/webui/templates/
+```
+
+4. **Config-Dateien erstellen:**
+```bash
+# Werden automatisch beim ersten Start erstellt
+touch /opt/ems-core/config/schedules.json
+touch /opt/ems-core/config/device_overrides.json
+```
+
+5. **Services neu starten:**
+```bash
+sudo systemctl start ems-optimizer ems-webui
+sudo systemctl status ems-optimizer ems-webui
+```
+
+6. **Logs prüfen:**
+```bash
+sudo journalctl -u ems-optimizer -f
+# Erwartete Ausgabe:
+# ✅ Manual Override enabled
+# ✅ Scheduler enabled
+```
+
+7. **Web UI testen:**
+- Öffne http://YOUR-IP:8080
+- Prüfe neue Sidebar Navigation
+- Teste Override Buttons in Device List
+
+### Breaking Changes in 2.0.1
+
+**Keine Breaking Changes!**  
+v2.0.1 ist vollständig rückwärtskompatibel mit v2.0.0.
+
+Alle neuen Features sind optional:
+- Ohne Schedules: System läuft wie v2.0.0
+- Ohne Overrides: System läuft wie v2.0.0
+- Alte Templates funktionieren weiter (aber neues Design empfohlen)
+
+---
+
+## Contributors
+
+- **svkux** - Initial work and maintainer
+
+## Links
+
+- [Repository](https://github.com/svkux/ems-core2.0)
+- [Issues](https://github.com/svkux/ems-core2.0/issues)
+- [Discussions](https://github.com/svkux/ems-core2.0/discussions)

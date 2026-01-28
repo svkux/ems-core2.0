@@ -1,658 +1,448 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EMS-Core - Device Management</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-        }
-        
-        .header h1 {
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-        
-        .toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 30px;
-            border-bottom: 1px solid #e0e0e0;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .search-box {
-            flex: 1;
-            min-width: 250px;
-        }
-        
-        .search-box input {
-            width: 100%;
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-        
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #5568d3;
-        }
-        
-        .btn-success {
-            background: #10b981;
-            color: white;
-        }
-        
-        .btn-success:hover {
-            background: #059669;
-        }
-        
-        .btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-        
-        .btn-secondary {
-            background: #6b7280;
-            color: white;
-        }
-        
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            padding: 20px 30px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        
-        .stat-card {
-            background: #f9fafb;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-        
-        .stat-card h3 {
-            font-size: 14px;
-            color: #6b7280;
-            margin-bottom: 5px;
-        }
-        
-        .stat-card p {
-            font-size: 24px;
-            font-weight: bold;
-            color: #1f2937;
-        }
-        
-        .devices-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
-            padding: 30px;
-        }
-        
-        .device-card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 20px;
-            transition: all 0.3s;
-        }
-        
-        .device-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transform: translateY(-2px);
-        }
-        
-        .device-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 15px;
-        }
-        
-        .device-name {
-            font-size: 18px;
-            font-weight: 600;
-            color: #1f2937;
-        }
-        
-        .device-type {
-            font-size: 12px;
-            color: #6b7280;
-            background: #f3f4f6;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-        
-        .device-info {
-            display: grid;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-        }
-        
-        .info-label {
-            color: #6b7280;
-        }
-        
-        .info-value {
-            font-weight: 500;
-            color: #1f2937;
-        }
-        
-        .priority-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .priority-CRITICAL { background: #fee2e2; color: #991b1b; }
-        .priority-HIGH { background: #fef3c7; color: #92400e; }
-        .priority-MEDIUM { background: #dbeafe; color: #1e40af; }
-        .priority-LOW { background: #d1fae5; color: #065f46; }
-        .priority-OPTIONAL { background: #e5e7eb; color: #374151; }
-        
-        .device-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #e5e7eb;
-        }
-        
-        .btn-small {
-            padding: 6px 12px;
-            font-size: 13px;
-            flex: 1;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal.active {
-            display: flex;
-        }
-        
-        .modal-content {
-            background: white;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        
-        .modal-header {
-            padding: 20px 30px;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .modal-header h2 {
-            font-size: 20px;
-        }
-        
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #6b7280;
-        }
-        
-        .modal-body {
-            padding: 30px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #374151;
-        }
-        
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-        
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-        
-        .modal-footer {
-            padding: 20px 30px;
-            border-top: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px 30px;
-            color: #6b7280;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>⚡ Device Management</h1>
-            <p>Verwalte deine Geräte und Konfiguration</p>
-        </div>
-        
-        <div class="stats" id="stats">
-            <div class="stat-card">
-                <h3>Geräte Gesamt</h3>
-                <p id="stat-total">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>Steuerbar</h3>
-                <p id="stat-controllable">0</p>
-            </div>
-            <div class="stat-card">
-                <h3>Gesamtleistung</h3>
-                <p id="stat-power">0 kW</p>
-            </div>
-            <div class="stat-card">
-                <h3>Aktiv</h3>
-                <p id="stat-enabled">0</p>
-            </div>
-        </div>
-        
-        <div class="toolbar">
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="🔍 Suche nach Name, IP oder Typ...">
-            </div>
-            <button class="btn btn-success" onclick="openAddModal()">
-                ➕ Gerät hinzufügen
-            </button>
-            <button class="btn btn-secondary" onclick="loadDevices()">
-                🔄 Aktualisieren
-            </button>
-        </div>
-        
-        <div class="devices-grid" id="devicesGrid"></div>
+{% extends "base.html" %}
+
+{% block title %}Geräte - EMS-Core{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="/">Home</a>
+    <span class="separator">›</span>
+    <span>Geräte</span>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .devices-grid {
+        display: grid;
+        gap: 20px;
+    }
+
+    .device-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s;
+    }
+
+    .device-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .device-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+
+    .device-info {
+        flex: 1;
+    }
+
+    .device-name {
+        font-size: 1.2em;
+        font-weight: 600;
+        color: var(--gray-900);
+        margin-bottom: 5px;
+    }
+
+    .device-meta {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+    }
+
+    .device-icon {
+        font-size: 2em;
+        margin-right: 15px;
+    }
+
+    .device-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        margin: 15px 0;
+        padding: 15px;
+        background: var(--gray-50);
+        border-radius: 8px;
+    }
+
+    .stat {
+        text-align: center;
+    }
+
+    .stat-label {
+        font-size: 0.8em;
+        color: var(--gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+    }
+
+    .stat-value {
+        font-size: 1.3em;
+        font-weight: 600;
+        color: var(--gray-900);
+    }
+
+    .control-panel {
+        display: flex;
+        gap: 10px;
+        padding-top: 15px;
+        border-top: 1px solid var(--gray-200);
+    }
+
+    .control-group {
+        display: flex;
+        gap: 8px;
+        flex: 1;
+    }
+
+    .override-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: var(--gray-50);
+        border-radius: 6px;
+        font-size: 0.9em;
+    }
+
+    .override-status.active {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .override-icon {
+        font-size: 1.1em;
+    }
+
+    /* Loading State */
+    .device-card.loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .filter-group label {
+        font-size: 0.9em;
+        color: var(--gray-600);
+    }
+
+    .filter-group select,
+    .filter-group input {
+        padding: 8px 12px;
+        border: 1px solid var(--gray-300);
+        border-radius: 6px;
+        font-size: 0.9em;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--gray-500);
+    }
+
+    .empty-state-icon {
+        font-size: 4em;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🔌 Geräte</h1>
+    <p>Verwalte und steuere deine Smart-Home Geräte</p>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <div class="filter-group">
+        <label>Filter:</label>
+        <select id="filter-type" onchange="filterDevices()">
+            <option value="all">Alle Typen</option>
+            <option value="shelly_plug">Shelly Plug</option>
+            <option value="shelly_1pm">Shelly 1PM</option>
+            <option value="sg_ready">SG-Ready</option>
+        </select>
     </div>
-    
-    <!-- Add/Edit Device Modal -->
-    <div class="modal" id="deviceModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">Gerät hinzufügen</h2>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="deviceForm">
-                    <input type="hidden" id="editDeviceId">
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Geräte-ID *</label>
-                            <input type="text" id="deviceId" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Name *</label>
-                            <input type="text" id="deviceName" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Typ *</label>
-                            <select id="deviceType" required>
-                                <option value="shelly_plug">Shelly Plug</option>
-                                <option value="shelly_1pm">Shelly 1PM</option>
-                                <option value="shelly_plus_1pm">Shelly Plus 1PM</option>
-                                <option value="shelly_pro_1pm">Shelly Pro 1PM</option>
-                                <option value="solax">Solax Inverter</option>
-                                <option value="sdm630">SDM630 Meter</option>
-                                <option value="generic">Generic</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Priorität *</label>
-                            <select id="devicePriority" required>
-                                <option value="CRITICAL">Critical - Immer AN</option>
-                                <option value="HIGH">High - Hohe Priorität</option>
-                                <option value="MEDIUM" selected>Medium - Mittlere Priorität</option>
-                                <option value="LOW">Low - Niedrige Priorität</option>
-                                <option value="OPTIONAL">Optional - Nur Überschuss</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>IP-Adresse *</label>
-                            <input type="text" id="deviceIp" placeholder="10.0.0.150" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Port</label>
-                            <input type="number" id="devicePort" value="80">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Leistung (Watt)</label>
-                            <input type="number" id="devicePower" value="0" step="100">
-                        </div>
-                        <div class="form-group">
-                            <label>Min. Laufzeit (Min)</label>
-                            <input type="number" id="deviceMinRuntime" value="0">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Raum</label>
-                            <input type="text" id="deviceRoom" placeholder="z.B. Küche">
-                        </div>
-                        <div class="form-group">
-                            <label>Kategorie</label>
-                            <select id="deviceCategory">
-                                <option value="">-- Keine --</option>
-                                <option value="appliance">Appliance</option>
-                                <option value="heating">Heating</option>
-                                <option value="cooling">Cooling</option>
-                                <option value="ev_charging">EV Charging</option>
-                                <option value="lighting">Lighting</option>
-                                <option value="other">Other</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Notizen</label>
-                        <textarea id="deviceNotes" placeholder="Zusätzliche Informationen..."></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="deviceCanControl" checked>
-                            Steuerbar
-                        </label>
-                        <label style="margin-left: 20px">
-                            <input type="checkbox" id="deviceEnabled" checked>
-                            Aktiviert
-                        </label>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
-                <button class="btn btn-primary" onclick="saveDevice()">Speichern</button>
-            </div>
-        </div>
+    <div class="filter-group">
+        <label>Priorität:</label>
+        <select id="filter-priority" onchange="filterDevices()">
+            <option value="all">Alle</option>
+            <option value="CRITICAL">CRITICAL</option>
+            <option value="HIGH">HIGH</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="LOW">LOW</option>
+        </select>
     </div>
-    
-    <script>
-        let devices = [];
-        
-        async function loadDevices() {
-            try {
-                const res = await fetch('/api/devices');
-                const data = await res.json();
-                devices = data.devices || [];
+    <div class="filter-group">
+        <label>Suche:</label>
+        <input type="text" id="search-input" placeholder="Gerät suchen..." oninput="filterDevices()">
+    </div>
+    <div class="filter-group" style="margin-left: auto;">
+        <button class="btn btn-secondary btn-sm" onclick="refreshDevices()">
+            🔄 Aktualisieren
+        </button>
+    </div>
+</div>
+
+<!-- Devices Grid -->
+<div class="devices-grid" id="devices-grid">
+    <div class="empty-state">
+        <div class="loading"></div>
+        <p>Lade Geräte...</p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let devices = [];
+    let overrides = {};
+
+    // Load Devices
+    async function loadDevices() {
+        try {
+            const response = await fetch('/api/devices');
+            const data = await response.json();
+            
+            if (data.success) {
+                devices = data.devices;
+                await loadOverrides();
                 renderDevices();
-                loadStats();
-            } catch (err) {
-                console.error('Failed to load devices:', err);
+            } else {
+                showNotification('Fehler beim Laden der Geräte', 'error');
             }
+        } catch (error) {
+            console.error('Error loading devices:', error);
+            showNotification('Verbindungsfehler', 'error');
         }
-        
-        async function loadStats() {
-            try {
-                const res = await fetch('/api/devices/stats');
-                const data = await res.json();
-                const stats = data.statistics;
-                
-                document.getElementById('stat-total').textContent = stats.total_devices;
-                document.getElementById('stat-controllable').textContent = stats.controllable_devices;
-                document.getElementById('stat-power').textContent = (stats.total_power / 1000).toFixed(1) + ' kW';
-                document.getElementById('stat-enabled').textContent = stats.enabled_devices;
-            } catch (err) {
-                console.error('Failed to load stats:', err);
+    }
+
+    // Load Overrides
+    async function loadOverrides() {
+        try {
+            const response = await fetch('/api/override/status');
+            const data = await response.json();
+            
+            if (data.success) {
+                overrides = data.overrides;
             }
+        } catch (error) {
+            console.error('Error loading overrides:', error);
         }
+    }
+
+    // Render Devices
+    function renderDevices() {
+        const grid = document.getElementById('devices-grid');
         
-        function renderDevices(filterDevices = devices) {
-            const grid = document.getElementById('devicesGrid');
-            
-            if (filterDevices.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1/-1;">
-                        <p>Keine Geräte gefunden</p>
-                        <button class="btn btn-primary" onclick="openAddModal()" style="margin-top: 20px;">Erstes Gerät hinzufügen</button>
-                    </div>
-                `;
-                return;
-            }
-            
-            grid.innerHTML = filterDevices.map(device => `
-                <div class="device-card">
-                    <div class="device-header">
-                        <div>
-                            <div class="device-name">${device.name}</div>
-                            <div class="device-type">${device.type}</div>
-                        </div>
-                        <span class="priority-badge priority-${device.priority}">${device.priority}</span>
-                    </div>
-                    
-                    <div class="device-info">
-                        <div class="info-row">
-                            <span class="info-label">IP:</span>
-                            <span class="info-value">${device.ip}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Leistung:</span>
-                            <span class="info-value">${device.power}W</span>
-                        </div>
-                        ${device.room ? `
-                        <div class="info-row">
-                            <span class="info-label">Raum:</span>
-                            <span class="info-value">${device.room}</span>
-                        </div>
-                        ` : ''}
-                        <div class="info-row">
-                            <span class="info-label">Status:</span>
-                            <span class="info-value">${device.enabled ? '✅ Aktiv' : '⏸️ Deaktiviert'}</span>
+        if (devices.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">🔌</div>
+                    <h3>Keine Geräte gefunden</h3>
+                    <p>Füge Geräte über die API hinzu</p>
+                </div>
+            `;
+            return;
+        }
+
+        grid.innerHTML = devices.map(device => {
+            const override = overrides[device.id];
+            const hasOverride = override && override.active;
+            const overrideMode = hasOverride ? override.mode : 'auto';
+
+            return `
+                <div class="device-card" data-id="${device.id}" data-type="${device.type}" data-priority="${device.priority}">
+                    <div class="device-card-header">
+                        <div class="device-info">
+                            <div style="display: flex; align-items: center;">
+                                <span class="device-icon">${getDeviceIcon(device.type)}</span>
+                                <div>
+                                    <div class="device-name">${device.name}</div>
+                                    <div class="device-meta">
+                                        <span class="badge badge-${getPriorityColor(device.priority)}">${device.priority}</span>
+                                        <span class="badge badge-secondary">${device.type}</span>
+                                        ${device.enabled ? '<span class="badge badge-success">Aktiv</span>' : '<span class="badge badge-secondary">Inaktiv</span>'}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="device-actions">
-                        <button class="btn btn-primary btn-small" onclick="editDevice('${device.id}')">✏️ Edit</button>
-                        <button class="btn btn-danger btn-small" onclick="deleteDevice('${device.id}')">🗑️ Delete</button>
+
+                    <div class="device-stats">
+                        <div class="stat">
+                            <div class="stat-label">IP</div>
+                            <div class="stat-value" style="font-size: 1em;">${device.ip}</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Leistung</div>
+                            <div class="stat-value">${device.power}W</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">Raum</div>
+                            <div class="stat-value" style="font-size: 0.9em;">${device.room || '-'}</div>
+                        </div>
+                    </div>
+
+                    ${hasOverride ? `
+                        <div class="override-status active">
+                            <span class="override-icon">👤</span>
+                            <span>Manuell: ${overrideMode === 'manual_on' ? 'EIN' : 'AUS'}</span>
+                        </div>
+                    ` : ''}
+
+                    <div class="control-panel">
+                        <div class="control-group">
+                            <button class="btn btn-success btn-sm" 
+                                    onclick="setOverride('${device.id}', 'manual_on')"
+                                    ${overrideMode === 'manual_on' ? 'disabled' : ''}>
+                                ▶️ EIN
+                            </button>
+                            <button class="btn btn-danger btn-sm" 
+                                    onclick="setOverride('${device.id}', 'manual_off')"
+                                    ${overrideMode === 'manual_off' ? 'disabled' : ''}>
+                                ⏸️ AUS
+                            </button>
+                            <button class="btn btn-secondary btn-sm" 
+                                    onclick="setOverride('${device.id}', 'auto')"
+                                    ${overrideMode === 'auto' ? 'disabled' : ''}>
+                                🤖 AUTO
+                            </button>
+                        </div>
                     </div>
                 </div>
-            `).join('');
+            `;
+        }).join('');
+    }
+
+    // Set Override
+    async function setOverride(deviceId, mode) {
+        const card = document.querySelector(`[data-id="${deviceId}"]`);
+        card.classList.add('loading');
+
+        try {
+            let endpoint;
+            if (mode === 'manual_on') {
+                endpoint = `/api/override/${deviceId}/manual_on`;
+            } else if (mode === 'manual_off') {
+                endpoint = `/api/override/${deviceId}/manual_off`;
+            } else {
+                endpoint = `/api/override/${deviceId}/auto`;
+            }
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    duration_minutes: 60,
+                    reason: 'Manuelle Steuerung via WebUI'
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`Gerät ${deviceId} auf ${mode.toUpperCase()} gesetzt`, 'success');
+                await loadOverrides();
+                renderDevices();
+            } else {
+                showNotification('Fehler beim Setzen des Override', 'error');
+            }
+        } catch (error) {
+            console.error('Error setting override:', error);
+            showNotification('Verbindungsfehler', 'error');
+        } finally {
+            card.classList.remove('loading');
         }
-        
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const filtered = devices.filter(d => 
-                d.name.toLowerCase().includes(query) ||
-                d.ip.includes(query) ||
-                d.type.toLowerCase().includes(query) ||
-                d.id.toLowerCase().includes(query)
-            );
-            renderDevices(filtered);
+    }
+
+    // Filter Devices
+    function filterDevices() {
+        const typeFilter = document.getElementById('filter-type').value;
+        const priorityFilter = document.getElementById('filter-priority').value;
+        const searchQuery = document.getElementById('search-input').value.toLowerCase();
+
+        const cards = document.querySelectorAll('.device-card');
+
+        cards.forEach(card => {
+            const type = card.dataset.type;
+            const priority = card.dataset.priority;
+            const name = card.querySelector('.device-name').textContent.toLowerCase();
+
+            const typeMatch = typeFilter === 'all' || type === typeFilter;
+            const priorityMatch = priorityFilter === 'all' || priority === priorityFilter;
+            const searchMatch = searchQuery === '' || name.includes(searchQuery);
+
+            if (typeMatch && priorityMatch && searchMatch) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
         });
-        
-        function openAddModal() {
-            document.getElementById('modalTitle').textContent = 'Gerät hinzufügen';
-            document.getElementById('deviceForm').reset();
-            document.getElementById('editDeviceId').value = '';
-            document.getElementById('deviceModal').classList.add('active');
-        }
-        
-        function editDevice(deviceId) {
-            const device = devices.find(d => d.id === deviceId);
-            if (!device) return;
-            
-            document.getElementById('modalTitle').textContent = 'Gerät bearbeiten';
-            document.getElementById('editDeviceId').value = device.id;
-            document.getElementById('deviceId').value = device.id;
-            document.getElementById('deviceName').value = device.name;
-            document.getElementById('deviceType').value = device.type;
-            document.getElementById('devicePriority').value = device.priority;
-            document.getElementById('deviceIp').value = device.ip;
-            document.getElementById('devicePort').value = device.port || 80;
-            document.getElementById('devicePower').value = device.power;
-            document.getElementById('deviceMinRuntime').value = device.min_runtime || 0;
-            document.getElementById('deviceRoom').value = device.room || '';
-            document.getElementById('deviceCategory').value = device.category || '';
-            document.getElementById('deviceNotes').value = device.notes || '';
-            document.getElementById('deviceCanControl').checked = device.can_control;
-            document.getElementById('deviceEnabled').checked = device.enabled;
-            
-            document.getElementById('deviceModal').classList.add('active');
-        }
-        
-        async function saveDevice() {
-            const editId = document.getElementById('editDeviceId').value;
-            const deviceData = {
-                id: document.getElementById('deviceId').value,
-                name: document.getElementById('deviceName').value,
-                type: document.getElementById('deviceType').value,
-                priority: document.getElementById('devicePriority').value,
-                ip: document.getElementById('deviceIp').value,
-                port: parseInt(document.getElementById('devicePort').value),
-                power: parseFloat(document.getElementById('devicePower').value),
-                min_runtime: parseInt(document.getElementById('deviceMinRuntime').value),
-                room: document.getElementById('deviceRoom').value,
-                category: document.getElementById('deviceCategory').value,
-                notes: document.getElementById('deviceNotes').value,
-                can_control: document.getElementById('deviceCanControl').checked,
-                enabled: document.getElementById('deviceEnabled').checked
-            };
-            
-            try {
-                let res;
-                if (editId) {
-                    res = await fetch(`/api/devices/${editId}`, {
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(deviceData)
-                    });
-                } else {
-                    res = await fetch('/api/devices', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(deviceData)
-                    });
-                }
-                
-                const result = await res.json();
-                if (result.success) {
-                    closeModal();
-                    await loadDevices();
-                } else {
-                    alert('Fehler: ' + result.error);
-                }
-            } catch (err) {
-                alert('Fehler beim Speichern: ' + err.message);
-            }
-        }
-        
-        async function deleteDevice(deviceId) {
-            if (!confirm(`Gerät ${deviceId} wirklich löschen?`)) return;
-            
-            try {
-                const res = await fetch(`/api/devices/${deviceId}`, {method: 'DELETE'});
-                const result = await res.json();
-                
-                if (result.success) {
-                    await loadDevices();
-                } else {
-                    alert('Fehler: ' + result.error);
-                }
-            } catch (err) {
-                alert('Fehler beim Löschen: ' + err.message);
-            }
-        }
-        
-        function closeModal() {
-            document.getElementById('deviceModal').classList.remove('active');
-        }
-        
-        // Init
+    }
+
+    // Refresh Devices
+    async function refreshDevices() {
+        await loadDevices();
+        showNotification('Geräte aktualisiert', 'info');
+    }
+
+    // Helper Functions
+    function getDeviceIcon(type) {
+        const icons = {
+            'shelly_plug': '🔌',
+            'shelly_1pm': '🔌',
+            'shelly_plus_1pm': '🔌',
+            'sg_ready': '♨️',
+            'generic': '⚙️'
+        };
+        return icons[type] || '⚙️';
+    }
+
+    function getPriorityColor(priority) {
+        const colors = {
+            'CRITICAL': 'danger',
+            'HIGH': 'warning',
+            'MEDIUM': 'info',
+            'LOW': 'secondary',
+            'OPTIONAL': 'secondary'
+        };
+        return colors[priority] || 'secondary';
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
         loadDevices();
-    </script>
-</body>
-</html>
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadDevices, 30000);
+    });
+</script>
+{% endblock %}

@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
-EMS-Core v2.0 - Main Optimizer Loop
-Das Herzstück: Intelligente Energie-Verteilung basierend auf PV, Battery, Grid
+EMS-Core v2.0 - Main Optimizer Loop (Final Version)
+Mit: PV-Optimierung + Scheduler + Manual Override
 """
 import asyncio
 import logging
-import time
 from typing import List, Dict, Optional
 from datetime import datetime
 
 from core.device_manager import DeviceManager, DeviceConfig
 from core.energy_sources import EnergySourcesManager
 from core.controllers.shelly import ShellyController
+from core.optimizer.scheduler import Scheduler
+from core.optimizer.schedule_manager import ScheduleManager
+from core.device_override import OverrideManager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,41 +24,59 @@ logger = logging.getLogger(__name__)
 
 class EMSOptimizer:
     """
-    Energy Management System Optimizer
+    Energy Management System Optimizer (Final)
     
-    Hauptaufgaben:
-    1. Hole aktuelle Energy-Daten (PV, Grid, Battery)
-    2. Berechne verfuegbare Power
-    3. Entscheide welche Devices ein/aus basierend auf Prioritaet
-    4. Fuehre Schaltbefehle aus
-    5. Wiederhole alle X Sekunden
+    Entscheidungs-Hierarchie:
+    1. Manual Override (höchste Priorität)
+    2. Schedule (force_off/force_on)
+    3. PV-Optimierung (normale Logik)
     """
     
     def __init__(self, 
                  device_manager: DeviceManager,
                  energy_manager: EnergySourcesManager,
+                 schedule_manager: Optional[ScheduleManager] = None,
+                 override_manager: Optional[OverrideManager] = None,
                  cycle_interval: int = 30):
         """
         Args:
             device_manager: Verwaltet alle steuerbaren Devices
             energy_manager: Liefert Energie-Daten
+            schedule_manager: Optional - Verwaltet Zeitpläne
+            override_manager: Optional - Verwaltet manuelle Overrides
             cycle_interval: Sekunden zwischen Optimierungs-Zyklen
         """
         self.device_manager = device_manager
         self.energy_manager = energy_manager
         self.cycle_interval = cycle_interval
         
+        # Scheduler (optional)
+        self.schedule_manager = schedule_manager
+        if self.schedule_manager:
+            self.scheduler = Scheduler(self.schedule_manager)
+            logger.info("✅ Scheduler enabled")
+        else:
+            self.scheduler = None
+            logger.info("ℹ️ Scheduler disabled")
+        
+        # Override Manager (optional)
+        self.override_manager = override_manager
+        if self.override_manager:
+            logger.info("✅ Manual Override enabled")
+        else:
+            logger.info("ℹ️ Manual Override disabled")
+        
         self.running = False
         self.current_state = {}
         
         # Strategien
-        self.min_surplus_threshold = 200  # Minimum W um Devices zuzuschalten
-        self.hysteresis = 100  # Hysterese um Flackern zu vermeiden
+        self.min_surplus_threshold = 200
+        self.hysteresis = 100
         
-        logger.info("EMS Optimizer initialized")
+        logger.info("EMS Optimizer initialized (Final Version)")
     
     async def run(self):
-        """Hauptschleife - laeuft kontinuierlich"""
+        """Hauptschleife"""
         self.running = True
         logger.info("🚀 EMS Optimizer started")
         
@@ -69,25 +89,33 @@ class EMSOptimizer:
                 logger.info(f"🔄 Optimization Cycle #{cycle_count}")
                 logger.info(f"{'='*60}")
                 
-                # 1. Update Energy Data
+                # 1. Cleanup abgelaufene Overrides (alle 10 Zyklen)
+                if self.override_manager and cycle_count % 10 == 0:
+                    self.override_manager.cleanup_expired()
+                
+                # 2. Update Energy Data
                 await self.update_energy_data()
                 
-                # 2. Get Current Energy Situation
+                # 3. Get Current Energy Situation
                 energy_data = self.energy_manager.get_current_data()
                 
-                # 3. Calculate Available Power
+                # 4. Update Scheduler with current energy data
+                if self.scheduler:
+                    self.scheduler.update_energy_data(energy_data)
+                
+                # 5. Calculate Available Power
                 available_power = self.calculate_available_power(energy_data)
                 
-                # 4. Make Control Decisions
+                # 6. Make Control Decisions (mit Override + Scheduler)
                 decisions = await self.make_control_decisions(energy_data, available_power)
                 
-                # 5. Execute Control Commands
+                # 7. Execute Control Commands
                 await self.execute_decisions(decisions)
                 
-                # 6. Log Summary
+                # 8. Log Summary
                 self.log_cycle_summary(energy_data, available_power, decisions)
                 
-                # 7. Wait for next cycle
+                # 9. Wait for next cycle
                 logger.info(f"⏳ Waiting {self.cycle_interval}s for next cycle...")
                 await asyncio.sleep(self.cycle_interval)
                 
@@ -96,7 +124,7 @@ class EMSOptimizer:
                 break
             except Exception as e:
                 logger.error(f"❌ Error in optimization cycle: {e}", exc_info=True)
-                await asyncio.sleep(5)  # Short wait before retry
+                await asyncio.sleep(5)
         
         logger.info("🛑 EMS Optimizer stopped")
     
@@ -106,31 +134,21 @@ class EMSOptimizer:
         await self.energy_manager.update_all_sources()
     
     def calculate_available_power(self, energy_data: Dict) -> float:
-        """
-        Berechne verfuegbare Power fuer optionale Devices
-        
-        Strategie:
-        - PV-Ueberschuss = PV - House (wenn Grid negativ)
-        - Verfuegbare Power = PV-Ueberschuss - Sicherheitspuffer
-        """
+        """Berechne verfuegbare Power fuer optionale Devices"""
         pv_power = energy_data.get('pv_power', 0)
         grid_power = energy_data.get('grid_power', 0)
         battery_power = energy_data.get('battery_power', 0)
         battery_soc = energy_data.get('battery_soc', 0)
         
-        # Wenn Einspeisung (Grid negativ), haben wir Ueberschuss
         if grid_power < 0:
             available = abs(grid_power) - self.hysteresis
         else:
             available = 0
         
-        # Batterie-SOC beruecksichtigen
-        # Wenn Battery voll (>90%), mehr aggressiv optionale Devices zuschalten
         if battery_soc > 90:
-            available += 200  # Bonus
-        # Wenn Battery leer (<20%), konservativer sein
+            available += 200
         elif battery_soc < 20:
-            available = max(0, available - 300)  # Penalty
+            available = max(0, available - 300)
         
         logger.info(f"💡 Available Power: {available:.0f}W (Grid: {grid_power:.0f}W, Battery SOC: {battery_soc:.0f}%)")
         
@@ -138,23 +156,18 @@ class EMSOptimizer:
     
     async def make_control_decisions(self, energy_data: Dict, available_power: float) -> List[Dict]:
         """
-        Entscheide welche Devices ein/aus geschaltet werden sollen
+        Entscheide welche Devices ein/aus
         
-        Logik:
-        1. CRITICAL Devices: Immer AN (ausser EVU-Sperre)
-        2. HIGH Devices: AN wenn ausreichend PV/Battery
-        3. MEDIUM Devices: AN bei gutem Ueberschuss
-        4. LOW/OPTIONAL: Nur bei deutlichem Ueberschuss
-        
-        Returns:
-            List of decisions: [{'device_id': '...', 'action': 'on/off', 'reason': '...'}]
+        Hierarchie:
+        1. Manual Override (überschreibt ALLES)
+        2. Schedule (force_off/force_on)
+        3. PV-Optimierung
         """
         decisions = []
         
         devices = self.device_manager.get_all_devices()
         controllable_devices = [d for d in devices if d.can_control and d.enabled]
         
-        # Sortiere nach Prioritaet
         priority_order = {'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3, 'OPTIONAL': 4}
         controllable_devices.sort(key=lambda d: priority_order.get(d.priority, 99))
         
@@ -166,9 +179,8 @@ class EMSOptimizer:
             if decision:
                 decisions.append(decision)
                 
-                # Subtract estimated power consumption
                 if decision['action'] == 'on':
-                    estimated_power = device.power_rating or 500  # Default 500W
+                    estimated_power = device.power or 500
                     remaining_power -= estimated_power
         
         return decisions
@@ -180,20 +192,85 @@ class EMSOptimizer:
         """
         Entscheide Aktion fuer ein einzelnes Device
         
-        Returns:
-            Decision dict oder None wenn keine Aenderung
+        Priorität:
+        1. Manual Override
+        2. Schedule
+        3. PV-Optimierung
         """
         device_id = device.id
         priority = device.priority
-        estimated_power = device.power_rating or 500
+        estimated_power = device.power or 500
         
-        # Hole aktuellen Status (wenn moeglich)
+        # === 1. MANUAL OVERRIDE (höchste Priorität) ===
+        if self.override_manager:
+            override_decision = self.override_manager.check_override_decision(device_id)
+            
+            if override_decision:
+                # Override aktiv - überschreibt ALLES
+                current_state = await self.get_device_current_state(device)
+                
+                if override_decision['action'] == 'force_on':
+                    if current_state != 'on':
+                        return {
+                            'device_id': device_id,
+                            'device_name': device.name,
+                            'action': 'on',
+                            'reason': f"👤 {override_decision['reason']}",
+                            'priority': priority,
+                            'manual_override': True
+                        }
+                    return None  # Bereits an
+                
+                elif override_decision['action'] == 'force_off':
+                    if current_state == 'on':
+                        return {
+                            'device_id': device_id,
+                            'device_name': device.name,
+                            'action': 'off',
+                            'reason': f"👤 {override_decision['reason']}",
+                            'priority': priority,
+                            'manual_override': True
+                        }
+                    return None  # Bereits aus
+        
+        # === 2. SCHEDULE (zweithöchste Priorität) ===
+        if self.scheduler:
+            schedule_decision = self.scheduler.check_device_schedule(device_id)
+            
+            if schedule_decision['action'] == 'force_off':
+                current_state = await self.get_device_current_state(device)
+                if current_state == 'on':
+                    return {
+                        'device_id': device_id,
+                        'device_name': device.name,
+                        'action': 'off',
+                        'reason': f"🕐 Schedule: {schedule_decision['reason']}",
+                        'priority': priority,
+                        'schedule_override': True
+                    }
+                return None
+            
+            if schedule_decision['action'] == 'force_on':
+                current_state = await self.get_device_current_state(device)
+                if current_state != 'on':
+                    return {
+                        'device_id': device_id,
+                        'device_name': device.name,
+                        'action': 'on',
+                        'reason': f"🕐 Schedule: {schedule_decision['reason']}",
+                        'priority': priority,
+                        'schedule_override': True
+                    }
+                return None
+            
+            # Priority Override durch Schedule?
+            if schedule_decision.get('override_priority') and schedule_decision.get('priority'):
+                priority = schedule_decision['priority']
+        
+        # === 3. PV-OPTIMIERUNG (normale Logik) ===
         current_state = await self.get_device_current_state(device)
         
-        # Entscheidungslogik basierend auf Prioritaet
-        
         if priority == 'CRITICAL':
-            # Critical Devices immer AN (ausser explizit deaktiviert)
             if current_state != 'on':
                 return {
                     'device_id': device_id,
@@ -204,7 +281,6 @@ class EMSOptimizer:
                 }
         
         elif priority == 'HIGH':
-            # High Priority: AN wenn mindestens etwas PV oder Battery
             if energy_data['pv_power'] > 500 or energy_data['battery_soc'] > 30:
                 if current_state != 'on':
                     return {
@@ -225,7 +301,6 @@ class EMSOptimizer:
                     }
         
         elif priority == 'MEDIUM':
-            # Medium: AN wenn guter Ueberschuss
             if remaining_power > estimated_power + self.min_surplus_threshold:
                 if current_state != 'on':
                     return {
@@ -246,7 +321,6 @@ class EMSOptimizer:
                     }
         
         elif priority in ['LOW', 'OPTIONAL']:
-            # Low/Optional: Nur bei deutlichem Ueberschuss
             required_surplus = estimated_power + self.min_surplus_threshold + 300
             
             if remaining_power > required_surplus:
@@ -268,13 +342,13 @@ class EMSOptimizer:
                         'priority': priority
                     }
         
-        return None  # Keine Aenderung noetig
+        return None
     
     async def get_device_current_state(self, device: DeviceConfig) -> Optional[str]:
-        """Hole aktuellen Zustand eines Devices (on/off/unknown)"""
+        """Hole aktuellen Zustand eines Devices"""
         try:
             if 'shelly' in device.type:
-                ip = device.connection_params.get('ip')
+                ip = device.ip
                 if ip:
                     controller = ShellyController(ip, device.type)
                     status = await controller.get_status()
@@ -298,6 +372,8 @@ class EMSOptimizer:
             action = decision['action']
             reason = decision['reason']
             device_name = decision['device_name']
+            manual_override = decision.get('manual_override', False)
+            schedule_override = decision.get('schedule_override', False)
             
             try:
                 device = self.device_manager.get_device(device_id)
@@ -305,9 +381,8 @@ class EMSOptimizer:
                     logger.error(f"❌ Device {device_id} not found")
                     continue
                 
-                # Execute control command
                 if 'shelly' in device.type:
-                    ip = device.connection_params.get('ip')
+                    ip = device.ip
                     if ip:
                         controller = ShellyController(ip, device.type)
                         
@@ -318,8 +393,15 @@ class EMSOptimizer:
                         else:
                             success = False
                         
+                        # Marker für Override
+                        marker = ""
+                        if manual_override:
+                            marker = "👤 "
+                        elif schedule_override:
+                            marker = "🕐 "
+                        
                         if success:
-                            logger.info(f"✅ {device_name} ({device_id}) -> {action.upper()} | Reason: {reason}")
+                            logger.info(f"✅ {marker}{device_name} ({device_id}) -> {action.upper()} | Reason: {reason}")
                         else:
                             logger.error(f"❌ {device_name} ({device_id}) -> {action.upper()} FAILED")
                 
@@ -327,12 +409,22 @@ class EMSOptimizer:
                 logger.error(f"❌ Failed to control {device_name} ({device_id}): {e}")
     
     def log_cycle_summary(self, energy_data: Dict, available_power: float, decisions: List[Dict]):
-        """Log Zusammenfassung des Optimierungs-Zyklus"""
+        """Log Zusammenfassung"""
         logger.info("")
         logger.info("📋 Cycle Summary:")
         logger.info(f"   PV: {energy_data['pv_power']:.0f}W | Grid: {energy_data['grid_power']:.0f}W | Battery: {energy_data['battery_power']:.0f}W ({energy_data['battery_soc']:.0f}%)")
         logger.info(f"   House: {energy_data['house_consumption']:.0f}W | Available: {available_power:.0f}W")
         logger.info(f"   Control Actions: {len(decisions)}")
+        
+        if self.scheduler:
+            active_schedules = len(self.schedule_manager.get_enabled_schedules())
+            logger.info(f"   Active Schedules: {active_schedules}")
+        
+        if self.override_manager:
+            override_stats = self.override_manager.get_statistics()
+            active_overrides = override_stats['total_overrides']
+            logger.info(f"   Active Overrides: {active_overrides} (ON: {override_stats['manual_on']}, OFF: {override_stats['manual_off']})")
+        
         logger.info("")
     
     def stop(self):
@@ -344,12 +436,28 @@ class EMSOptimizer:
 async def main():
     """Main Entry Point"""
     logger.info("="*60)
-    logger.info("🚀 EMS-Core v2.0 - Energy Management System")
+    logger.info("🚀 EMS-Core v2.0 - Energy Management System (Final)")
     logger.info("="*60)
     
     # Initialize Components
     device_manager = DeviceManager()
     energy_manager = EnergySourcesManager()
+    
+    # Initialize Scheduler (optional)
+    try:
+        schedule_manager = ScheduleManager()
+        logger.info(f"✅ Loaded {len(schedule_manager.schedules)} schedules")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to load schedules: {e}")
+        schedule_manager = None
+    
+    # Initialize Override Manager (optional)
+    try:
+        override_manager = OverrideManager()
+        logger.info(f"✅ Loaded {len(override_manager.overrides)} overrides")
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to load overrides: {e}")
+        override_manager = None
     
     logger.info(f"✅ Loaded {len(device_manager.devices)} devices")
     logger.info(f"✅ Loaded {len(energy_manager.sources)} energy sources")
@@ -358,7 +466,9 @@ async def main():
     optimizer = EMSOptimizer(
         device_manager=device_manager,
         energy_manager=energy_manager,
-        cycle_interval=30  # 30 Sekunden zwischen Zyklen
+        schedule_manager=schedule_manager,
+        override_manager=override_manager,
+        cycle_interval=30
     )
     
     # Run Optimizer Loop

@@ -1,207 +1,209 @@
-# EMS-Core v2.0 - Development Documentation
+# Development Guide
 
-## 🏗️ Projekt-Status (Stand: 2025-01-19)
+Willkommen bei der EMS-Core v2.0 Entwicklung! Diese Anleitung hilft dir beim Setup und der Entwicklung neuer Features.
 
-### ✅ Implementiert
+## 📋 Table of Contents
 
-#### Core Module
-- ✅ **DeviceManager** (`core/device_manager.py`)
-  - Zentrale Geräte-Verwaltung
-  - YAML/JSON Persistierung
-  - IP-Mapping
-  - Validierung
-  - Import/Export
+- [Development Setup](#development-setup)
+- [Project Structure](#project-structure)
+- [Coding Standards](#coding-standards)
+- [Testing](#testing)
+- [Creating New Features](#creating-new-features)
+- [API Development](#api-development)
+- [UI Development](#ui-development)
+- [Debugging](#debugging)
+- [Contributing](#contributing)
 
-- ✅ **Scheduler** (`core/optimizer/scheduler.py`)
-  - Wochentags-basierte Zeitpläne
-  - Zeitfenster-Management
-  - Enable/Disable pro Gerät
-  - JSON-Persistierung
+## 🚀 Development Setup
 
-- ✅ **Prioritizer** (`core/optimizer/prioritizer.py`)
-  - 5 Prioritätsstufen (CRITICAL, HIGH, MEDIUM, LOW, OPTIONAL)
-  - User-definierte Reihenfolge
-  - Switching Plan Berechnung
-  - Mindestlaufzeit-Respektierung
-  - Manuelle Überschreibung
+### Prerequisites
 
-- ✅ **Main Optimizer** (`core/main.py`)
-  - Haupt-Event-Loop
-  - Controller-Integration
-  - Energie-Daten Aggregation
-  - SG-Ready Steuerung
-  - Systemd-ready
+- Python 3.8+
+- Git
+- Virtual Environment Support
+- Text Editor (VSCode empfohlen)
 
-#### Controller
-- ✅ **ShellyController** (Gen1/2/Plus/Pro)
-- ✅ **SolaxModbusController** (PV + Battery)
-- ✅ **SDM630ModbusController** (Smartmeter)
-- ✅ **SGReadyController** (Wärmepumpen)
-- ✅ **ShellyProEM3Controller** (3-Phasen Messung)
-
-#### Web UI
-- ✅ **Device Management** (`webui/templates/devices.html`)
-  - Add/Edit/Delete Geräte
-  - Suche & Filter
-  - Statistiken
-  - Responsive Design
-
-- ✅ **API Endpoints** (`webui/api_routes.py`)
-  - REST API für alle Operationen
-  - Device CRUD
-  - Discovery Integration
-  - Statistics
-
-- ✅ **Flask App** (`webui/app.py`)
-  - Blueprint-System
-  - Error Handling
-  - Health Check
-
----
-
-## 📁 Projekt-Struktur
-
-```
-ems-core2.0/
-├── core/
-│   ├── __init__.py
-│   ├── main.py                    # Haupt-Optimizer
-│   ├── device_manager.py          # Device Management
-│   │
-│   ├── optimizer/
-│   │   ├── __init__.py
-│   │   ├── scheduler.py           # Zeitpläne
-│   │   └── prioritizer.py         # Priorisierung
-│   │
-│   ├── controllers/
-│   │   ├── __init__.py
-│   │   ├── shelly.py              # Shelly Devices
-│   │   ├── solax.py               # Solax Inverter
-│   │   ├── sdm630.py              # SDM630 Meter
-│   │   └── sg_ready.py            # SG-Ready
-│   │
-│   └── integrations/
-│       ├── __init__.py
-│       └── discovery.py           # Network Discovery
-│
-├── webui/
-│   ├── app.py                     # Flask App
-│   ├── api_routes.py              # REST API
-│   │
-│   ├── templates/
-│   │   ├── index.html             # Dashboard
-│   │   ├── devices.html           # Device Management
-│   │   ├── discovery.html         # Discovery
-│   │   ├── priorities.html        # Priorities
-│   │   └── schedules.html         # Schedules
-│   │
-│   └── static/
-│       ├── css/
-│       └── js/
-│
-├── config/
-│   ├── settings.yaml              # System Config
-│   ├── devices.yaml               # Device Config
-│   ├── schedules.json             # Zeitpläne
-│   ├── priorities.json            # Priority Order
-│   └── device_mapping.json        # IP Mapping
-│
-├── logs/                          # Log Files
-│
-├── tests/
-│   └── test_ems_system.py         # System Tests
-│
-├── deploy_ems_updates.sh          # Deployment Script
-├── update_github.sh               # GitHub Sync
-├── ems-core.service               # Systemd Service
-├── requirements.txt
-├── README.md
-├── DEVELOPMENT.md                 # This file
-└── CHANGELOG.md
-```
-
----
-
-## 🔧 Development Workflow
-
-### Setup Development Environment
+### Initial Setup
 
 ```bash
-# Clone Repository
+# 1. Clone Repository
 git clone https://github.com/svkux/ems-core2.0.git
 cd ems-core2.0
 
-# Virtual Environment
+# 2. Create Virtual Environment
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # Linux/Mac
+# oder
+venv\Scripts\activate  # Windows
 
-# Install Dependencies
+# 3. Install Dependencies
 pip install -r requirements.txt
 
-# Install Dev Dependencies
-pip install pytest pytest-asyncio black flake8
+# 4. Install Development Dependencies
+pip install -r requirements-dev.txt  # Falls vorhanden
+# Oder manuell:
+pip install pytest pytest-asyncio black flake8 mypy
 ```
 
-### Run Tests
+### Configuration
 
 ```bash
-# Quick Test
-python3 test_ems_system.py
+# Erstelle Config-Verzeichnis
+mkdir -p config
 
-# Full Test Suite (wenn pytest installiert)
-pytest tests/ -v
+# Kopiere Example Configs
+cp config.example/devices.yaml config/devices.yaml
+cp config.example/energy_sources.json config/energy_sources.json
+cp config.example/schedules.json config/schedules.json
 
-# Test einzelnes Modul
-python3 -m pytest tests/test_scheduler.py
+# Editiere Configs
+nano config/devices.yaml
 ```
 
-### Run Development Server
+### Running in Development Mode
 
 ```bash
-# Main Optimizer (Vordergrund)
+# Terminal 1: Optimizer
+cd /path/to/ems-core2.0
+source venv/bin/activate
 python3 core/main.py
 
-# Web UI (Vordergrund)
+# Terminal 2: WebUI
+cd /path/to/ems-core2.0
+source venv/bin/activate
 python3 webui/app.py
-
-# Mit Debug Logging
-LOG_LEVEL=DEBUG python3 core/main.py
 ```
 
----
+## 📁 Project Structure
 
-## 🎯 Coding Standards
+```
+ems-core2.0/
+├── core/                       # Backend Core
+│   ├── main.py                 # Optimizer Loop (Entry Point)
+│   ├── device_manager.py       # Device CRUD
+│   ├── device_override.py      # Manual Override
+│   ├── energy_sources.py       # Energy Data Management
+│   ├── controllers/            # Device Controllers
+│   │   ├── shelly.py
+│   │   └── sg_ready.py
+│   └── optimizer/              # Optimizer Logic
+│       ├── scheduler.py
+│       └── schedule_manager.py
+│
+├── webui/                      # Frontend Web UI
+│   ├── app.py                  # Flask App (Entry Point)
+│   ├── api_routes.py           # Device API
+│   ├── api_energy.py           # Energy API
+│   ├── api_override.py         # Override API
+│   ├── templates/              # Jinja2 Templates
+│   │   ├── base.html           # Base Template
+│   │   ├── index.html
+│   │   ├── dashboard.html
+│   │   ├── devices.html
+│   │   └── energy_sources.html
+│   └── static/                 # Static Files (TODO)
+│       ├── css/
+│       ├── js/
+│       └── img/
+│
+├── config/                     # Configuration Files
+│   ├── devices.yaml
+│   ├── energy_sources.json
+│   ├── schedules.json
+│   └── device_overrides.json
+│
+├── docs/                       # Documentation
+│   ├── INSTALLATION.md
+│   ├── SCHEDULER_README.md
+│   ├── OVERRIDE_README.md
+│   └── ...
+│
+├── tests/                      # Unit Tests
+│   ├── test_device_manager.py
+│   ├── test_scheduler.py
+│   └── ...
+│
+├── deploy/                     # Deployment Scripts
+│   ├── ems-optimizer.service
+│   ├── ems-webui.service
+│   └── deploy_services.sh
+│
+├── requirements.txt            # Python Dependencies
+├── README.md
+├── CHANGELOG.md
+└── LICENSE
+```
+
+## 🎨 Coding Standards
 
 ### Python Style Guide
 
-- **PEP 8** für Code-Formatierung
-- **Type Hints** wo möglich
-- **Docstrings** für alle Module/Klassen/Funktionen
-- **Async/Await** für I/O Operationen
-
-### Beispiel:
+Wir folgen **PEP 8** mit einigen Anpassungen:
 
 ```python
-async def control_device(device_id: str, state: bool) -> bool:
+# Imports sortiert
+import asyncio
+import logging
+from typing import List, Dict, Optional
+from datetime import datetime
+
+# Local imports
+from core.device_manager import DeviceManager
+
+# Constants in UPPER_CASE
+MAX_RETRIES = 3
+DEFAULT_TIMEOUT = 5
+
+# Klassen in PascalCase
+class DeviceManager:
+    pass
+
+# Funktionen in snake_case
+def get_device_status():
+    pass
+
+# Private mit underscore
+def _internal_helper():
+    pass
+```
+
+### Docstrings
+
+```python
+def calculate_available_power(self, energy_data: Dict) -> float:
     """
-    Steuere Gerät
+    Berechne verfügbare Power für optionale Devices
     
     Args:
-        device_id: Eindeutige Geräte-ID
-        state: True = ON, False = OFF
+        energy_data: Dict mit pv_power, grid_power, battery_soc
         
     Returns:
-        True wenn erfolgreich
+        Verfügbare Leistung in Watt
         
-    Raises:
-        DeviceNotFoundError: Wenn Gerät nicht existiert
+    Example:
+        >>> available = optimizer.calculate_available_power({
+        ...     'pv_power': 3000,
+        ...     'grid_power': -1200,
+        ...     'battery_soc': 85
+        ... })
+        >>> print(available)
+        1100.0
     """
-    device = self.get_device(device_id)
-    if not device:
-        raise DeviceNotFoundError(f"Device {device_id} not found")
-    
-    # Implementation...
-    return True
+    # Implementation
+```
+
+### Type Hints
+
+```python
+from typing import Dict, List, Optional
+
+def get_device(self, device_id: str) -> Optional[DeviceConfig]:
+    """Hole Device nach ID"""
+    return self.devices.get(device_id)
+
+async def update_energy_data(self) -> Dict[str, float]:
+    """Update Energy Data"""
+    # Implementation
 ```
 
 ### Logging
@@ -211,249 +213,471 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Levels verwenden:
-logger.debug("Detailed debug info")
-logger.info("General information")
-logger.warning("Warning message")
-logger.error("Error occurred")
-logger.critical("Critical error")
+# Info für normale Operationen
+logger.info("✅ Device added: {device.name}")
+
+# Debug für Details
+logger.debug(f"Raw data: {data}")
+
+# Warning für Probleme
+logger.warning("⚠️ Device not reachable: {device.ip}")
+
+# Error für Fehler
+logger.error(f"❌ Failed to update: {e}", exc_info=True)
 ```
 
----
+### Error Handling
 
-## 🔌 API Dokumentation
-
-### Device Management API
-
-#### `GET /api/devices`
-Hole alle Geräte
-
-**Response:**
-```json
-{
-  "success": true,
-  "devices": [...],
-  "count": 5
-}
+```python
+# Immer spezifische Exceptions
+try:
+    value = int(data['value'])
+except KeyError:
+    logger.error("Missing 'value' in data")
+    return None
+except ValueError:
+    logger.error("Invalid value format")
+    return None
+except Exception as e:
+    logger.error(f"Unexpected error: {e}", exc_info=True)
+    return None
 ```
-
-#### `POST /api/devices`
-Erstelle neues Gerät
-
-**Request:**
-```json
-{
-  "id": "heater_1",
-  "name": "Heizstab",
-  "type": "shelly_1pm",
-  "ip": "10.0.0.150",
-  "power": 3000,
-  "priority": "MEDIUM"
-}
-```
-
-#### `PUT /api/devices/{id}`
-Update Gerät
-
-#### `DELETE /api/devices/{id}`
-Lösche Gerät
-
-#### `POST /api/devices/discover`
-Starte Discovery
-
-#### `GET /api/devices/stats`
-Hole Statistiken
-
-Vollständige API-Docs: siehe `webui/api_routes.py`
-
----
 
 ## 🧪 Testing
 
 ### Unit Tests
 
-```python
-import pytest
-from core.optimizer.scheduler import Scheduler
+```bash
+# Alle Tests ausführen
+pytest
 
-def test_scheduler_add():
-    scheduler = Scheduler("test_schedules.json")
-    schedule = {"monday": [[10, 14]]}
-    
-    scheduler.add_schedule("test", schedule)
-    
-    assert "test" in scheduler.schedules
+# Mit Coverage
+pytest --cov=core --cov=webui
+
+# Spezifischer Test
+pytest tests/test_device_manager.py
+
+# Mit Output
+pytest -v -s
 ```
 
-### Integration Tests
+### Test Example
 
 ```python
+# tests/test_device_manager.py
 import pytest
 from core.device_manager import DeviceManager, DeviceConfig
 
-@pytest.mark.asyncio
-async def test_device_lifecycle():
+def test_add_device():
+    """Test device addition"""
     manager = DeviceManager()
     
     device = DeviceConfig(
         id="test_1",
         name="Test Device",
         type="shelly_plug",
-        ip="10.0.0.150",
-        power=1000
+        ip="192.168.1.100",
+        power=2000
     )
     
-    # Add
     assert manager.add_device(device) == True
+    assert len(manager.devices) == 1
+    assert manager.get_device("test_1") == device
+
+@pytest.mark.asyncio
+async def test_optimizer_cycle():
+    """Test optimizer cycle"""
+    # Implementation
+```
+
+### Manual Testing
+
+```bash
+# Test Device Manager
+python3 core/device_manager.py
+
+# Test Scheduler
+python3 core/optimizer/scheduler.py
+
+# Test Override Manager
+python3 core/device_override.py
+
+# Test API
+curl http://localhost:8080/api/devices
+curl http://localhost:8080/api/override/status
+```
+
+## 🎯 Creating New Features
+
+### 1. Plan Feature
+
+1. Create GitHub Issue
+2. Discuss approach
+3. Create feature branch
+
+```bash
+git checkout -b feature/my-new-feature
+```
+
+### 2. Implement Backend
+
+```python
+# core/my_feature.py
+
+import logging
+from typing import Dict, Optional
+
+logger = logging.getLogger(__name__)
+
+class MyFeatureManager:
+    """Manager für My Feature"""
     
-    # Get
-    retrieved = manager.get_device("test_1")
-    assert retrieved.name == "Test Device"
+    def __init__(self):
+        logger.info("MyFeature initialized")
     
-    # Update
-    manager.update_device("test_1", {"power": 2000})
-    assert manager.get_device("test_1").power == 2000
+    def do_something(self) -> Dict:
+        """Do something useful"""
+        try:
+            # Implementation
+            return {'success': True}
+        except Exception as e:
+            logger.error(f"Error: {e}", exc_info=True)
+            return {'success': False, 'error': str(e)}
+```
+
+### 3. Add API Endpoint
+
+```python
+# webui/api_myfeature.py
+
+from flask import Blueprint, jsonify, request
+
+api_myfeature = Blueprint('api_myfeature', __name__, url_prefix='/api/myfeature')
+
+@api_myfeature.route('/action', methods=['POST'])
+def do_action():
+    """Perform action"""
+    try:
+        data = request.get_json()
+        # Process
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+```
+
+### 4. Register in app.py
+
+```python
+# webui/app.py
+
+from webui.api_myfeature import api_myfeature
+
+app.register_blueprint(api_myfeature)
+```
+
+### 5. Add UI
+
+```html
+<!-- webui/templates/myfeature.html -->
+{% extends "base.html" %}
+
+{% block title %}My Feature - EMS-Core{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>My Feature</h1>
+</div>
+
+<div class="card">
+    <button class="btn btn-primary" onclick="performAction()">
+        Do Something
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function performAction() {
+    const response = await fetch('/api/myfeature/action', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({...})
+    });
     
-    # Delete
-    assert manager.remove_device("test_1") == True
+    const data = await response.json();
+    if (data.success) {
+        showNotification('Success!', 'success');
+    }
+}
+</script>
+{% endblock %}
 ```
 
----
+### 6. Add Tests
 
-## 🚀 Deployment
+```python
+# tests/test_myfeature.py
 
-### Lokaler Test-Deploy
-
-```bash
-./deploy_ems_updates.sh
+def test_my_feature():
+    """Test my feature"""
+    # Implementation
 ```
 
-### Production Deploy
+### 7. Document
 
-```bash
-# 1. Update Code
-git pull
+```markdown
+# docs/MYFEATURE_README.md
 
-# 2. Update Dependencies
-pip install -r requirements.txt
+# My Feature
 
-# 3. Restart Service
-sudo systemctl restart ems-core
-sudo systemctl restart ems-webui
+## Overview
+...
 
-# 4. Check Status
-sudo systemctl status ems-core
-sudo journalctl -u ems-core -f
+## Usage
+...
+
+## API
+...
 ```
 
----
-
-## 📝 Git Workflow
-
-### Branch Strategy
-
-- `main` - Production-ready code
-- `develop` - Development branch
-- `feature/*` - Feature branches
-- `bugfix/*` - Bugfix branches
-
-### Commit Messages
-
-Format: `type(scope): message`
-
-Types:
-- `feat`: Neues Feature
-- `fix`: Bugfix
-- `docs`: Dokumentation
-- `refactor`: Code Refactoring
-- `test`: Tests
-- `chore`: Maintenance
-
-Beispiele:
-```bash
-git commit -m "feat(device): Add device mapping functionality"
-git commit -m "fix(scheduler): Fix timezone handling"
-git commit -m "docs(api): Update API documentation"
-```
-
-### GitHub Sync
+### 8. Commit & Push
 
 ```bash
-# Automatisch
-./update_github.sh
-
-# Manuell
 git add .
-git commit -m "Your message"
-git push origin main
+git commit -m "feat: Add MyFeature
+
+- Implemented backend logic
+- Added API endpoints
+- Created UI
+- Added tests
+- Updated documentation"
+
+git push origin feature/my-new-feature
 ```
 
----
+### 9. Create Pull Request
+
+## 🌐 API Development
+
+### REST API Best Practices
+
+```python
+# Erfolgreiche Response
+return jsonify({
+    'success': True,
+    'data': {...},
+    'message': 'Optional success message'
+})
+
+# Fehler Response
+return jsonify({
+    'success': False,
+    'error': 'Error message',
+    'code': 'ERROR_CODE'
+}), 400  # Passender HTTP Status Code
+```
+
+### HTTP Status Codes
+
+- `200 OK` - Erfolgreiche GET/PUT/DELETE
+- `201 Created` - Erfolgreiche POST (Ressource erstellt)
+- `400 Bad Request` - Ungültige Anfrage
+- `404 Not Found` - Ressource nicht gefunden
+- `500 Internal Server Error` - Server-Fehler
+
+### API Versioning
+
+```python
+# Für Breaking Changes, neue Version erstellen
+api_v2 = Blueprint('api_v2', __name__, url_prefix='/api/v2')
+```
+
+## 🎨 UI Development
+
+### Template Struktur
+
+```html
+{% extends "base.html" %}
+
+{% block title %}Seiten-Titel{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="/">Home</a>
+    <span class="separator">›</span>
+    <span>Aktuelle Seite</span>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Seiten-spezifisches CSS */
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hauptinhalt -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Seiten-spezifisches JavaScript
+</script>
+{% endblock %}
+```
+
+### CSS Utilities (aus base.html)
+
+```css
+/* Buttons */
+.btn, .btn-primary, .btn-success, .btn-danger, .btn-secondary
+.btn-sm
+
+/* Badges */
+.badge, .badge-success, .badge-warning, .badge-danger, .badge-info
+
+/* Cards */
+.card, .card-header
+
+/* Colors */
+var(--primary), var(--success), var(--danger), var(--warning)
+```
+
+### JavaScript Helpers
+
+```javascript
+// Notification anzeigen
+showNotification('Erfolgreich gespeichert', 'success');
+showNotification('Fehler aufgetreten', 'error');
+
+// Loading State
+element.classList.add('loading');
+// ... API Call
+element.classList.remove('loading');
+```
 
 ## 🐛 Debugging
 
-### Enable Debug Logging
+### Python Debugging
 
 ```python
-# In core/main.py
+# Breakpoint setzen
+import pdb; pdb.set_trace()
+
+# Logging Debug Level
 logging.basicConfig(level=logging.DEBUG)
 ```
 
-### Common Issues
+### Flask Debugging
 
-**Problem: Geräte werden nicht erkannt**
-```bash
-# Check Discovery
-python3 -c "from core.integrations.discovery import DeviceDiscovery; d = DeviceDiscovery(); print(d.scan_network('10.0.0.0/24'))"
+```python
+# In app.py
+if __name__ == '__main__':
+    app.run(
+        host='0.0.0.0',
+        port=8080,
+        debug=True  # Enable Debug Mode
+    )
 ```
 
-**Problem: Controller-Fehler**
-```bash
-# Test Controller direkt
-python3 << EOF
-import asyncio
-from core.controllers.shelly import ShellyController
+### Browser DevTools
 
-async def test():
-    shelly = ShellyController("10.0.0.150")
-    print(await shelly.get_status())
-
-asyncio.run(test())
-EOF
+```
+F12 → Console
+F12 → Network (API Calls prüfen)
+F12 → Elements (HTML/CSS prüfen)
 ```
 
+### Systemd Service Debugging
+
+```bash
+# Service Status
+sudo systemctl status ems-optimizer
+
+# Logs live
+sudo journalctl -u ems-optimizer -f
+
+# Logs mit Zeitstempel
+sudo journalctl -u ems-optimizer --since "10 minutes ago"
+
+# Alle Fehler
+sudo journalctl -u ems-optimizer -p err
+```
+
+## 🤝 Contributing
+
+### Workflow
+
+1. Fork Repository
+2. Create Feature Branch
+3. Make Changes
+4. Write Tests
+5. Update Documentation
+6. Commit mit aussagekräftiger Message
+7. Push to your Fork
+8. Create Pull Request
+
+### Commit Message Format
+
+```
+<type>: <subject>
+
+<body>
+
+<footer>
+```
+
+**Types:**
+- `feat`: Neues Feature
+- `fix`: Bug Fix
+- `docs`: Dokumentation
+- `style`: Code-Formatierung
+- `refactor`: Code-Umstrukturierung
+- `test`: Tests
+- `chore`: Build/Dependencies
+
+**Example:**
+```
+feat: Add dark mode toggle
+
+- Implemented theme switcher in base.html
+- Added CSS variables for dark theme
+- Saved preference to localStorage
+- Updated documentation
+
+Closes #123
+```
+
+### Pull Request Template
+
+```markdown
+## Description
+Kurze Beschreibung der Änderungen
+
+## Type of Change
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+
+## Testing
+- [ ] Unit tests added/updated
+- [ ] Manual testing performed
+- [ ] All tests passing
+
+## Checklist
+- [ ] Code follows style guide
+- [ ] Documentation updated
+- [ ] CHANGELOG.md updated
+```
+
+## 📚 Resources
+
+- [Flask Documentation](https://flask.palletsprojects.com/)
+- [Python asyncio](https://docs.python.org/3/library/asyncio.html)
+- [Jinja2 Templates](https://jinja.palletsprojects.com/)
+- [pytest](https://docs.pytest.org/)
+
 ---
 
-## 🔮 Roadmap
-
-### Phase 1 (Current)
-- ✅ Device Manager
-- ✅ Basic Web UI
-- ✅ Core Optimizer
-- ⏳ Testing & Bugfixes
-
-### Phase 2 (Next)
-- [ ] Advanced Scheduling (Wettervorhersage)
-- [ ] Machine Learning Optimization
-- [ ] Grafana Integration
-- [ ] MQTT Support
-- [ ] Multi-User Support
-
-### Phase 3 (Future)
-- [ ] Mobile App
-- [ ] Cloud Backup
-- [ ] Energy Trading Integration
-- [ ] AI-based Prediction
-
----
-
-## 📞 Support
-
-- **Issues**: https://github.com/svkux/ems-core2.0/issues
-- **Discussions**: https://github.com/svkux/ems-core2.0/discussions
-
----
-
-## 📄 License
-
-MIT License - See LICENSE file
+**Happy Coding! 🚀**

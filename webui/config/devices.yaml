@@ -1,0 +1,16 @@
+devices:
+- id: plug_wohnzimmer
+  name: Wohnzimmer
+  type: shelly_plug
+  ip: 10.0.0.38
+  port: 80
+  power: 0
+  priority: MEDIUM
+  can_control: true
+  min_runtime: 0
+  enabled: true
+  room: ''
+  category: other
+  notes: ''
+  discovered_at: '2026-01-27T22:04:31.946519'
+  last_seen: '2026-01-27T22:04:31.946544'

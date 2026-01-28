@@ -9,8 +9,8 @@
         "ip": "10.0.0.14"
       },
       "enabled": true,
-      "last_value": 1755.84,
-      "last_update": "2026-01-27T21:30:41.740922"
+      "last_value": 3821.36,
+      "last_update": "2026-01-28T17:30:08.155728"
     },
     {
       "id": "pv_generation_1769422770",
@@ -24,7 +24,7 @@
       },
       "enabled": true,
       "last_value": 0.0,
-      "last_update": "2026-01-27T21:30:41.747681"
+      "last_update": "2026-01-28T17:30:08.166254"
     },
     {
       "id": "battery_1769423149",
@@ -39,7 +39,7 @@
       },
       "enabled": true,
       "last_value": 80.0,
-      "last_update": "2026-01-27T21:30:41.758743"
+      "last_update": "2026-01-28T17:30:08.180795"
     }
   ]
 }
